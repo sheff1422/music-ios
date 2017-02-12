@@ -20,18 +20,18 @@ class SettingsSort: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         counts = ["30 \(tracks)", "50 \(tracks)", "100 \(tracks)", "200 \(tracks)", "300 \(tracks)"]
-        self.preferredContentSize = CGSizeMake(320,150)
-        self.tableView.registerClass(UITableViewCell.self, forCellReuseIdentifier:"Cell")
+        self.preferredContentSize = CGSize(width: 320,height: 150)
+        self.tableView.register(UITableViewCell.self, forCellReuseIdentifier:"Cell")
     }
 }
 
 extension SettingsSort: UITableViewDataSource, UITableViewDelegate {
-    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
     
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        var result = 0
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        let result = 0
         switch settingType {
         case 0:
             return sortirovka.count
@@ -43,39 +43,39 @@ extension SettingsSort: UITableViewDataSource, UITableViewDelegate {
         return result
     }
     
-    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let section = indexPath.section
         let row = indexPath.row
-        let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath:indexPath) as! UITableViewCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for:indexPath) 
         if(settingType == 0){
             
-            let sort = NSUserDefaults.standardUserDefaults().integerForKey("sort")
+            let sort = UserDefaults.standard.integer(forKey: "sort")
             cell.textLabel?.text = sortirovka[indexPath.row]
             cell.accessoryType = (sort == row ?
-                .Checkmark :
-                .None)
+                .checkmark :
+                .none)
             return cell
         }else{
-            let count = NSUserDefaults.standardUserDefaults().integerForKey("count")
+            let count = UserDefaults.standard.integer(forKey: "count")
             cell.textLabel?.text = counts[indexPath.row]
             cell.accessoryType = (count == row ?
-                .Checkmark :
-                .None)
+                .checkmark :
+                .none)
             return cell
         }
     }
     
-    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let section = indexPath.section
         let row = indexPath.row
         switch section {
         case 0:
             if settingType == 0 {
-                NSUserDefaults.standardUserDefaults().setInteger(row, forKey:"sort")
+                UserDefaults.standard.set(row, forKey:"sort")
                 tableView.reloadData()
             }
             if settingType == 1 {
-                NSUserDefaults.standardUserDefaults().setInteger(row, forKey:"count")
+                UserDefaults.standard.set(row, forKey:"count")
                 tableView.reloadData()
             }
         default:break

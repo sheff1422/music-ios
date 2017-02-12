@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class TrackList {
+open class TrackList {
     
     var aid: Int
     var owner_id: Int
@@ -17,9 +17,9 @@ public class TrackList {
     var duration: Int
     var lyrics_id: Int
     var genre: Int
-    var remoteUrl: NSURL
+    var remoteUrl: URL
     
-    init (aid: Int, owner_id: Int, artist: String, title: String, duration: Int, url: String, lyrics_id: Int, genre: Int, remoteUrl: NSURL){
+    init (aid: Int, owner_id: Int, artist: String, title: String, duration: Int, url: String, lyrics_id: Int, genre: Int, remoteUrl: URL){
         self.aid = aid
         self.owner_id = owner_id
         self.artist = artist
@@ -30,28 +30,28 @@ public class TrackList {
         self.remoteUrl = remoteUrl
     }
     
-    var url: NSURL {
+    var url: URL {
         get{
             return self.remoteUrl
         }
     }
     
-    class func TrackListWithJSON(trackListResult: NSArray) -> [TrackList] {
+    class func TrackListWithJSON(_ trackListResult: NSArray) -> [TrackList] {
         
         var trackList = [TrackList]()
-       
+        var trackListResults = trackListResult as! [[String:AnyObject]]
         if trackListResult.count > 0 {
-            for var index = 1; index < trackListResult.count; index++ {
-                let aid = trackListResult[index]["aid"] as! Int
-                let owner_id = trackListResult[index]["owner_id"] as! Int
-                let artist = trackListResult[index]["artist"] as? String ?? ""
-                let title = trackListResult[index]["title"] as? String ?? "untitled"
-                let duration = trackListResult[index]["duration"] as! Int
-                let url = trackListResult[index]["url"] as! String
-                let lyrics_id = trackListResult[index]["lyrics_id"] as? Int ?? 0
-                let genre = trackListResult[index]["genre"] as? Int ?? 0
-                let urlString = trackListResult[index]["url"] as! String
-                let remoteURL = NSURL(string: urlString)!
+            for index in 1 ..< trackListResults.count {
+                let aid  = trackListResults[index]["aid"] as! Int
+                let owner_id = trackListResults[index]["owner_id"] as! Int
+                let artist = trackListResults[index]["artist"] as? String ?? ""
+                let title = trackListResults[index]["title"] as? String ?? "untitled"
+                let duration = trackListResults[index]["duration"] as! Int
+                let url = trackListResults[index]["url"] as! String
+                let lyrics_id = trackListResults[index]["lyrics_id"] as? Int ?? 0
+                let genre = trackListResults[index]["genre"] as? Int ?? 0
+                let urlString = trackListResults[index]["url"] as! String
+                let remoteURL = URL(string: urlString)!
                 
                 var newTrack = TrackList(aid: aid, owner_id: owner_id, artist: artist, title: title, duration: duration, url: url, lyrics_id: lyrics_id, genre: genre, remoteUrl: remoteURL)
                 trackList.append(newTrack)
@@ -74,7 +74,7 @@ class DownloadedFiles {
         self.duration = duration
     }
     
-    class func DownloadedFilesWithArray(files: NSArray) -> [DownloadedFiles] {
+    class func DownloadedFilesWithArray(_ files: NSArray) -> [DownloadedFiles] {
         var fileList = [DownloadedFiles]()
         for file in files {
             let title = file as! String

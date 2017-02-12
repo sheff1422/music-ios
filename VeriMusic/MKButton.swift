@@ -14,10 +14,10 @@ class MKButton : UIButton
 {
     @IBInspectable var maskEnabled: Bool = true {
         didSet {
-            mkLayer.enableMask(enable: maskEnabled)
+            mkLayer.enableMask( maskEnabled)
         }
     }
-    @IBInspectable var rippleLocation: MKRippleLocation = .TapLocation {
+    @IBInspectable var rippleLocation: MKRippleLocation = .tapLocation {
         didSet {
             mkLayer.rippleLocation = rippleLocation
         }
@@ -42,9 +42,9 @@ class MKButton : UIButton
         }
     }
     @IBInspectable var aniDuration: Float = 0.65
-    @IBInspectable var circleAniTimingFunction: MKTimingFunction = .Linear
-    @IBInspectable var backgroundAniTimingFunction: MKTimingFunction = .Linear
-    @IBInspectable var shadowAniTimingFunction: MKTimingFunction = .EaseOut
+    @IBInspectable var circleAniTimingFunction: MKTimingFunction = .linear
+    @IBInspectable var backgroundAniTimingFunction: MKTimingFunction = .linear
+    @IBInspectable var shadowAniTimingFunction: MKTimingFunction = .easeOut
     
     @IBInspectable var cornerRadius: CGFloat = 2.5 {
         didSet {
@@ -64,7 +64,7 @@ class MKButton : UIButton
         }
     }
     
-    private lazy var mkLayer: MKLayer = MKLayer(superLayer: self.layer)
+    fileprivate lazy var mkLayer: MKLayer = MKLayer(superLayer: self.layer)
     
     // MARK - initilization
     override init(frame: CGRect) {
@@ -72,22 +72,22 @@ class MKButton : UIButton
         setupLayer()
     }
     
-    required init(coder aDecoder: NSCoder) {
+    required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
         setupLayer()
     }
     
     // MARK - setup methods
-    private func setupLayer() {
+    fileprivate func setupLayer() {
         adjustsImageWhenHighlighted = false
         self.cornerRadius = 2.5
         mkLayer.setBackgroundLayerColor(backgroundLayerColor)
     }
     
     // MARK - location tracking methods
-    override func beginTrackingWithTouch(touch: UITouch, withEvent event: UIEvent) -> Bool {
-        if rippleLocation == .TapLocation {
-            mkLayer.didChangeTapLocation(touch.locationInView(self))
+    override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+        if rippleLocation == .tapLocation {
+            mkLayer.didChangeTapLocation(touch.location(in: self))
         }
         
         // circleLayer animation
@@ -110,6 +110,6 @@ class MKButton : UIButton
             //}
         }
         
-        return super.beginTrackingWithTouch(touch, withEvent: event)
+        return super.beginTracking(touch, with: event)
     }
 }

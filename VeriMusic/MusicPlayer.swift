@@ -11,7 +11,7 @@ import UIKit
 import AVFoundation
 import MediaPlayer
 
-private func mod(n: Int, m: Int) -> Int {
+private func mod(_ n: Int, m: Int) -> Int {
     assert(m > 0, "m must be positive")
     return n >= 0 ? n % m : m - (-n) % m
 }
@@ -28,7 +28,7 @@ private extension Array {
 }
 
 protocol MusicPlayerDelegate {
-    func player(playlistPlayer: MusicPlayer, didChangeCurrentPlaylistItem playlistItem: PlaylistItem?)
+    func player(_ playlistPlayer: MusicPlayer, didChangeCurrentPlaylistItem playlistItem: PlaylistItem?)
 }
 
 class MusicPlayer: NSObject {
@@ -44,8 +44,8 @@ class MusicPlayer: NSObject {
     
     override init() {
         super.init()
-        avQueuePlayer.actionAtItemEnd = .None
-        NSNotificationCenter.defaultCenter().addObserver(self, selector: "playNextTrack:", name: AVPlayerItemDidPlayToEndTimeNotification, object: avQueuePlayer.currentItem)
+        avQueuePlayer.actionAtItemEnd = .none
+        NotificationCenter.default.addObserver(self, selector: #selector(MusicPlayer.playNextTrack(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: avQueuePlayer.currentItem)
     }
     
     /**
@@ -56,27 +56,20 @@ class MusicPlayer: NSObject {
         //NSNotificationCenter.defaultCenter().addObserver(self, selector: "audioSessionInterrupted:", name: AVAudioSessionInterruptionNotification, object: AVAudioSession.sharedInstance())
         var error:NSError?
         
-        AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error: &error)
+        try! AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
         
         if let nonNilError = error {
-            println("an error occurred when audio session category.\n \(error)")
+            print("an error occurred when audio session category.\n \(error)")
         }
         
         var activationError:NSError?
-        let success = AVAudioSession.sharedInstance().setActive(true, error: &activationError)
-        if !success {
-            if let nonNilActivationError = activationError {
-                println("an error occurred when audio session category.\n \(nonNilActivationError)")
-            } else {
-                println("audio session could not be activated")
-            }
-        }
+        try! AVAudioSession.sharedInstance().setActive(true)
     }
     
     func play() {
         if avQueuePlayer.currentItem == nil {
             if let first = playlist.first {
-                avQueuePlayer.replaceCurrentItemWithPlayerItem(first)
+                avQueuePlayer.replaceCurrentItem(with: first)
                 delegate?.player(self, didChangeCurrentPlaylistItem: self.currentItem)
             }
         }
@@ -95,13 +88,13 @@ class MusicPlayer: NSObject {
         }
     }
     
-    func playNextTrack(notification: NSNotification) {
-        var repeat: Bool = false
-        if let bool = NSUserDefaults.standardUserDefaults().valueForKey("repeat") as? Bool {
-            repeat = bool
+    func playNextTrack(_ notification: Notification) {
+        var repeatPlay: Bool = false
+        if let bool = UserDefaults.standard.value(forKey: "repeat") as? Bool {
+            repeatPlay = bool
         }
         
-        if(repeat){
+        if(repeatPlay){
             seekToTime()
         }else{
             self.nextTrack()
@@ -110,22 +103,22 @@ class MusicPlayer: NSObject {
     
     func seekToTime(){
         let targetTime = CMTimeMakeWithSeconds(0.0, Int32(NSEC_PER_SEC))
-        self.avQueuePlayer.seekToTime(targetTime, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
+        self.avQueuePlayer.seek(to: targetTime, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
     }
     
     func nextTrack() {
         var next: PlaylistItem
         
-        if let i = find(playlist, avQueuePlayer.currentItem as! PlaylistItem) {
-            next = playlist[mod(i + 1, playlist.count)]
+        if let i = playlist.index(of:avQueuePlayer.currentItem as! PlaylistItem) {
+            next = playlist[mod(i + 1, m: playlist.count)]
         } else {
             next = playlist[0]
         }
-        next.seekToTime(kCMTimeZero)
+        next.seek(to: kCMTimeZero)
         
         let playing = avQueuePlayer.rate > 0
         
-        avQueuePlayer.replaceCurrentItemWithPlayerItem(next)
+        avQueuePlayer.replaceCurrentItem(with: next)
         delegate?.player(self, didChangeCurrentPlaylistItem: self.currentItem)
         
         if playing {
@@ -136,16 +129,16 @@ class MusicPlayer: NSObject {
     func previousTrack() {
         var previous: PlaylistItem
         
-        if let i = find(playlist, avQueuePlayer.currentItem as! PlaylistItem) {
-            previous = playlist[mod(i - 1, playlist.count)]
+        if let i = playlist.index(of:avQueuePlayer.currentItem as! PlaylistItem) {
+            previous = playlist[mod(i - 1, m: playlist.count)]
         } else {
             previous = playlist[0]
         }
-        previous.seekToTime(kCMTimeZero)
+        previous.seek(to: kCMTimeZero)
         
         let playing = avQueuePlayer.rate > 0
         
-        avQueuePlayer.replaceCurrentItemWithPlayerItem(previous)
+        avQueuePlayer.replaceCurrentItem(with: previous)
         delegate?.player(self, didChangeCurrentPlaylistItem: self.currentItem)
         
         if playing {
@@ -153,12 +146,12 @@ class MusicPlayer: NSObject {
         }
     }
     
-    func setCurrentItemFromIndex(index: Int) {
+    func setCurrentItemFromIndex(_ index: Int) {
         let item = playlist[index]
         if item != currentItem {
-            item.seekToTime(kCMTimeZero)
+            item.seek(to: kCMTimeZero)
         }
-        avQueuePlayer.replaceCurrentItemWithPlayerItem(item)
+        avQueuePlayer.replaceCurrentItem(with: item)
         delegate?.player(self, didChangeCurrentPlaylistItem: self.currentItem)
     }
     
@@ -166,35 +159,35 @@ class MusicPlayer: NSObject {
         playlist.shuffle()
     }
 
-    func remoteControlReceivedWithEvent(receivedEvent:UIEvent)  {
-        if (receivedEvent.type == .RemoteControl) {
+    func remoteControlReceivedWithEvent(_ receivedEvent:UIEvent)  {
+        if (receivedEvent.type == .remoteControl) {
             switch receivedEvent.subtype {
-            case .RemoteControlTogglePlayPause:
+            case .remoteControlTogglePlayPause:
                 if avQueuePlayer.rate > 0.0 {
                     avQueuePlayer.pause()
                 } else {
                     avQueuePlayer.play()
                 }
-            case .RemoteControlPlay:
+            case .remoteControlPlay:
                 avQueuePlayer.play()
-            case .RemoteControlPause:
+            case .remoteControlPause:
                 avQueuePlayer.pause()
-            case .RemoteControlNextTrack:
+            case .remoteControlNextTrack:
                 self.nextTrack()
                 avQueuePlayer.play()
-            case .RemoteControlPreviousTrack:
+            case .remoteControlPreviousTrack:
                 self.previousTrack()
                 avQueuePlayer.play()
             default:
-                println("received sub type \(receivedEvent.subtype) Ignoring")
+                print("received sub type \(receivedEvent.subtype) Ignoring")
             }
         }
     }
     
     //MARK: - Notifications
-    func audioSessionInterrupted(notification:NSNotification)
+    func audioSessionInterrupted(_ notification:Notification)
     {
-        println("interruption received: \(notification)")
+        print("interruption received: \(notification)")
     }
     
     //response to remote control events

@@ -18,18 +18,18 @@ struct Config {
     static let GET_TOKEN = "http://alashov.com/music/app/get_token.php"
 }
 
-func stringFromTimeInterval(interval: Int) -> String{
-    var ti = NSInteger(interval)
-    var seconds: NSInteger = ti % 60
-    var minutes: NSInteger = (ti / 60) % 60
-    var hours: NSInteger = (ti/3600)
+func stringFromTimeInterval(_ interval: Int) -> String{
+    let ti = NSInteger(interval)
+    let seconds: NSInteger = ti % 60
+    let minutes: NSInteger = (ti / 60) % 60
+    let hours: NSInteger = (ti/3600)
     if hours > 0 {
         return NSString(format: "%02ld:%02ld:%02ld", hours, minutes, seconds) as String
     }
     return NSString(format: "%02ld:%02ld", minutes, seconds) as String
 }
 
-func getCountMusic(count: Int) -> Int{
+func getCountMusic(_ count: Int) -> Int{
     switch(count){
         case 0:
         return 30
@@ -42,24 +42,25 @@ func getCountMusic(count: Int) -> Int{
     return 10
 }
 
-func getAudioFileDurationFromName(filename: String) -> String {
-    var documentsPathh = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
-    let audioPathh = documentsPathh.stringByAppendingPathComponent("Audio")
-    let audioFileURL = NSURL(fileURLWithPath:audioPathh.stringByAppendingPathComponent(filename))
+func getAudioFileDurationFromName(_ filename: String) -> String {
+    let documentsPathh = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+    let audioPathh = documentsPathh+"/Audio"
+    let audioFileURL = URL(fileURLWithPath:audioPathh+"/\(filename)")
     
-    var audioAsset = AVURLAsset(URL: audioFileURL, options: nil)
-    var audioDuration = audioAsset.duration;
-    var audioDurationSeconds = Int(CMTimeGetSeconds(audioDuration))
+    let audioAsset = AVURLAsset(url: audioFileURL, options: nil)
+    let audioDuration = audioAsset.duration;
+    let audioDurationSeconds = Int(CMTimeGetSeconds(audioDuration))
     
     return "\(stringFromTimeInterval(audioDurationSeconds))"
 }
 
 func getDownloadedAudioFiles() -> NSArray {
     
-    let documentsUrl =  NSFileManager.defaultManager().URLsForDirectory(.DocumentDirectory, inDomains: .UserDomainMask)[0] as! NSURL
-    
-    if let directoryUrls =  NSFileManager.defaultManager().contentsOfDirectoryAtURL(documentsUrl, includingPropertiesForKeys: nil, options: NSDirectoryEnumerationOptions.SkipsSubdirectoryDescendants, error: nil) {
-        let mp3Files = directoryUrls.map(){ $0.lastPathComponent }.filter(){ $0.pathExtension == "mp3" }
+    let documentsUrl =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0] 
+    do {
+        // Get the directory contents urls (including subfolders urls)
+        let directoryUrls = try FileManager.default.contentsOfDirectory(at: documentsUrl, includingPropertiesForKeys: nil, options: [.skipsSubdirectoryDescendants])
+        let mp3Files = directoryUrls.map(){ $0.pathExtension }.filter(){ $0 == "mp3" }
         
         var mp3FilesAVURL = [PlaylistItem]()
         
@@ -67,25 +68,27 @@ func getDownloadedAudioFiles() -> NSArray {
             mp3FilesAVURL.append(getAudioAsseUrlForFilename(mp3))
         }
         
-        return mp3FilesAVURL
+        return mp3FilesAVURL as NSArray
+        
+    } catch let error as NSError {
+        return []
+        print(error.localizedDescription)
     }
-    
-    return []
 }
 
-func getAudioAsseUrlForFilename(audioFile: String) -> PlaylistItem {
-    var documentsPathh = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
-    let audioFileURL = NSURL(fileURLWithPath:documentsPathh.stringByAppendingPathComponent(audioFile))
+func getAudioAsseUrlForFilename(_ audioFile: String) -> PlaylistItem {
+    let documentsPathh = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+    let audioFileURL = URL(fileURLWithPath:documentsPathh + "/\(audioFile)")
     
-    var audioAsset = PlaylistItem(URL: audioFileURL)
+    let audioAsset = PlaylistItem(url: audioFileURL)
     
     return audioAsset
 }
 
 @objc
 protocol APIControllerProtocol {
-    func didReceiveAPIResults(results: NSDictionary, indexPath: NSIndexPath)
-    optional func result(status: String, error_msg: String, error_code: Int, captcha_sid: String, captcha_img: String)
+    func didReceiveAPIResults(_ results: NSDictionary, indexPath: IndexPath)
+    @objc optional func result(_ status: String, error_msg: String, error_code: Int, captcha_sid: String, captcha_img: String)
 }
 
 class APIController {
@@ -96,66 +99,78 @@ class APIController {
         self.delegate = delegate
     }
     
-    func clientRequest(path: String) {
-        UIApplication.sharedApplication().networkActivityIndicatorVisible = true
-        let url = NSURL(string: path)
-        let session = NSURLSession.sharedSession()
-        let task = session.dataTaskWithURL(url!, completionHandler: {data, response, error -> Void in
-            if let json = self.CheckResponse(data){
-                self.delegate.didReceiveAPIResults(json, indexPath: NSIndexPath())
-                UIApplication.sharedApplication().networkActivityIndicatorVisible = false
+    func clientRequest(_ path: String) {
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        let url = URL(string: path)
+        let session = URLSession.shared
+        let task = session.dataTask(with: url!, completionHandler: {data, response, error -> Void in
+            if let json = self.CheckResponse(data as AnyObject){
+                self.delegate.didReceiveAPIResults(json, indexPath: IndexPath())
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
             }
             if(error != nil) {
                 // If there is an error in the web request, print it to the console
-                println(error.localizedDescription)
+                print(error!.localizedDescription)
             }
         })
         task.resume()
     }
     
-    func getToken(path: String) {
-        UIApplication.sharedApplication().networkActivityIndicatorVisible = true
-        let url = NSURL(string: path)
-        let session = NSURLSession.sharedSession()
-        var err: NSError?
-        let task = session.dataTaskWithURL(url!, completionHandler: {data, response, error -> Void in
-            if let json = NSJSONSerialization.JSONObjectWithData(data, options: .MutableLeaves, error: &err) as? NSDictionary {
-     
-                var newToken: String = json.valueForKey("vkToken") as! String
-                var downloadEnabled: Int = json.valueForKey("downloadEnabled") as! Int
+    func getToken(_ path: String) {
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        let url = URL(string: path)
+        let session = URLSession.shared
+        let task = session.dataTask(with: url!, completionHandler: {data, response, error -> Void in
+            guard let unwrappedData = data else {
+                return
+            }
+            do {
+                let json = try JSONSerialization.jsonObject(with: unwrappedData, options: [.mutableLeaves]) as? NSDictionary
+                guard let unwrappedJson = json else {
+                    return
+                }
+                let newToken: String = unwrappedJson["vkToken"] as! String
+                let downloadEnabled: Int = unwrappedJson["downloadEnabled"] as! Int
                 
-                NSUserDefaults.standardUserDefaults().setInteger(downloadEnabled, forKey: "downloadEnabled")
-                NSUserDefaults.standardUserDefaults().setObject(newToken, forKey: "vkToken")
-                self.delegate.didReceiveAPIResults(["status":"ok"], indexPath: NSIndexPath())
-                UIApplication.sharedApplication().networkActivityIndicatorVisible = false
+                UserDefaults.standard.set(downloadEnabled, forKey: "downloadEnabled")
+                UserDefaults.standard.set(newToken, forKey: "vkToken")
+                self.delegate.didReceiveAPIResults(["status":"ok"], indexPath: IndexPath())
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+                
+ 
             }
-            if(error != nil) {
-                println(error.localizedDescription)
+            catch {
+                print(error.localizedDescription)
+
             }
         })
         task.resume()
     }
     
-    func CheckResponse(responseObject: AnyObject) -> NSDictionary? {
-        var err: NSError?
-        if let data = responseObject as? NSData {
-            if let json = NSJSONSerialization.JSONObjectWithData(data, options: .MutableLeaves, error: &err) as? NSDictionary {
-                //println(json)
-                if (json.objectForKey("response") as? NSArray != nil){
+    func CheckResponse(_ responseObject: AnyObject) -> NSDictionary? {
+        if let data = responseObject as? Data {
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: [.mutableLeaves]) as? NSDictionary
+                //print(json)
+                //    open class func jsonObject(with data: Data, options opt: JSONSerialization.ReadingOptions = []) throws -> Any
+                guard let jsonUnwrapped = json else {
+                    return nil
+                }
+                if (jsonUnwrapped["response"] as? NSArray != nil){
                     return json
                 }
-                else if let error = json.objectForKey("error") as? NSDictionary {
+                else if let error = jsonUnwrapped["error"] as? NSDictionary {
                     
                     if let error_code = error["error_code"] as? Int {
-                        if let error_msg = error.objectForKey("error_msg") as? String {
-                            println("\(error_code)  \(error_msg)")
+                        if let error_msg = error["error_msg"] as? String {
+                            print("\(error_code)  \(error_msg)")
 
                             switch error_code {
                                 case 14:
                                     let captcha_sid = error["captcha_sid"] as? String
                                     let captcha_img = error["captcha_img"] as? String
                                     self.delegate.result!("error", error_msg: error_msg, error_code: error_code, captcha_sid: captcha_sid!, captcha_img: captcha_img!)
-                                    println("\(captcha_sid!)  \(captcha_img!)")
+                                    print("\(captcha_sid!)  \(captcha_img!)")
                                 case 5:
                                     self.delegate.result!("error", error_msg: error_msg, error_code: error_code, captcha_sid: "", captcha_img: "")
                                 case 6:
@@ -167,63 +182,63 @@ class APIController {
                         }
                     }
                     
-                } else {
-                    println("Check response return error:\n \(json) \n \(err)")
+                }
+                }catch {
+                    print(error.localizedDescription)
                 }
             }
-        }
-        UIApplication.sharedApplication().networkActivityIndicatorVisible = false
+        UIApplication.shared.isNetworkActivityIndicatorVisible = false
         return nil
     }
     
-    func searchVKFor(searchTerm: String) {
+    func searchVKFor(_ searchTerm: String) {
         
-        let VKSearchTerm = searchTerm.stringByReplacingOccurrencesOfString(" ", withString: "+", options: NSStringCompareOptions.CaseInsensitiveSearch, range: nil)
+        let VKSearchTerm = searchTerm.replacingOccurrences(of: " ", with: "+", options: NSString.CompareOptions.caseInsensitive, range: nil)
         
-        if let escapedSearchTerm = VKSearchTerm.stringByAddingPercentEscapesUsingEncoding(NSUTF8StringEncoding) {
+        if let escapedSearchTerm = VKSearchTerm.addingPercentEscapes(using: String.Encoding.utf8) {
             
-            var sort = NSUserDefaults.standardUserDefaults().integerForKey("sort")
-            var count = getCountMusic(NSUserDefaults.standardUserDefaults().integerForKey("count"))
-            let performer_only_bool = NSUserDefaults.standardUserDefaults().boolForKey("performer_only") ? 1 : 0
+            var sort = UserDefaults.standard.integer(forKey: "sort")
+            var count = getCountMusic(UserDefaults.standard.integer(forKey: "count"))
+            let performer_only_bool = UserDefaults.standard.bool(forKey: "performer_only") ? 1 : 0
             if count < 0 {
-                NSUserDefaults.standardUserDefaults().setInteger(30, forKey: "count")
+                UserDefaults.standard.set(30, forKey: "count")
                 count = 30
             }
             if sort < 0 {
-                NSUserDefaults.standardUserDefaults().setInteger(2, forKey: "sort")
+                UserDefaults.standard.set(2, forKey: "sort")
                 sort = 2
             }
             
-            if let vkToken: String = NSUserDefaults.standardUserDefaults().valueForKey("vkToken") as? String {
-                var urlPath = "\(Config.VK_AUDIO_SEARCH)?access_token=\(vkToken)&q=\(escapedSearchTerm)&sort=\(sort)&count=\(count)&performer_only=\(performer_only_bool)"
+            if let vkToken: String = UserDefaults.standard.value(forKey: "vkToken") as? String {
+                let urlPath = "\(Config.VK_AUDIO_SEARCH)?access_token=\(vkToken)&q=\(escapedSearchTerm)&sort=\(sort)&count=\(count)&performer_only=\(performer_only_bool)"
                 clientRequest(urlPath)
             }else{
-                var urlPath = "\(Config.VK_AUDIO_SEARCH)?access_token=\(Config.ACCESS_TOKEN)&q=\(escapedSearchTerm)&sort=\(sort)&count=\(count)&performer_only=\(performer_only_bool)"
+                let urlPath = "\(Config.VK_AUDIO_SEARCH)?access_token=\(Config.ACCESS_TOKEN)&q=\(escapedSearchTerm)&sort=\(sort)&count=\(count)&performer_only=\(performer_only_bool)"
                 clientRequest(urlPath)
             }
         }
     }
     
-    func audioInfo(audio: TrackList, indexPath: NSIndexPath){
+    func audioInfo(_ audio: TrackList, indexPath: IndexPath){
         
-        let session = NSURLSession.sharedSession()
-        let task = session.dataTaskWithURL(audio.url, completionHandler: {data, response, error -> Void in
-            if let httpResponse = response as? NSHTTPURLResponse {
-                //println(httpResponse)
+        let session = URLSession.shared
+        let task = session.dataTask(with: audio.url, completionHandler: {data, response, error -> Void in
+            if let httpResponse = response as? HTTPURLResponse {
+                //print(httpResponse)
                 if let contentType = httpResponse.allHeaderFields["Content-Length"] as? String {
-                    //println(contentType)
+                    //print(contentType)
                     self.delegate.didReceiveAPIResults(["length": contentType, "title": audio.title], indexPath: indexPath)
                 }
             }
             if(error != nil) {
-                println(error.localizedDescription)
+                print(error!.localizedDescription)
             }
         })
         task.resume()
     }
     
-    func captchaWrite(captcha_sid: String, captcha_key: String){
-        if let vkToken: String = NSUserDefaults.standardUserDefaults().valueForKey("vkToken") as? String {
+    func captchaWrite(_ captcha_sid: String, captcha_key: String){
+        if let vkToken: String = UserDefaults.standard.value(forKey: "vkToken") as? String {
             let url = "\(Config.VK_AUDIO_SEARCH)?access_token=\(vkToken)&captcha_sid=\(captcha_sid)&captcha_key=\(captcha_key)"
             clientRequest(url)
         }else{

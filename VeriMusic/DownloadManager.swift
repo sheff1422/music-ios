@@ -8,20 +8,22 @@
 
 import Foundation
 
-public protocol DownloadManagerDelegate: class {
-    func downloadManager(downloadManager: DownloadManager, downloadDidFail url: NSURL, error: NSError, indexPath: NSIndexPath)
-    func downloadManager(downloadManager: DownloadManager, downloadDidStart url: NSURL, resumed: Bool, indexPath: NSIndexPath)
-    func downloadManager(downloadManager: DownloadManager, downloadDidFinish url: NSURL, indexPath: NSIndexPath)
-    func downloadManager(downloadManager: DownloadManager, downloadDidProgress url: NSURL, totalSize: UInt64, downloadedSize: UInt64, percentage: Double, averageDownloadSpeedInBytes: UInt64, timeRemaining: NSTimeInterval, indexPath: NSIndexPath)
+
+public protocol DownloadManagerDelegate{
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidFail url: URL, error: NSError, indexPath: IndexPath)
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidStart url: URL, resumed: Bool, indexPath: IndexPath)
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidFinish url: URL, indexPath: IndexPath)
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidProgress url: URL, totalSize: UInt64, downloadedSize: UInt64, percentage: Double, averageDownloadSpeedInBytes: UInt64, timeRemaining: TimeInterval, indexPath: IndexPath)
+    func equals(otherObject: DownloadManagerDelegate) -> Bool
 }
 
 func ==(left: DownloadManager.Download, right: DownloadManager.Download) -> Bool {
     return left.url == right.url
 }
 
-public class DownloadManager: NSObject, NSURLConnectionDataDelegate {
+open class DownloadManager: NSObject, NSURLConnectionDataDelegate {
     
-    internal let queue = dispatch_queue_create("io.persson.DownloadManager", DISPATCH_QUEUE_CONCURRENT)
+    internal let queue = DispatchQueue(label: "io.persson.DownloadManager", attributes: DispatchQueue.Attributes.concurrent)
     
     internal var delegates: [DownloadManagerDelegate] = []
     internal var downloads: [DownloadManager.Download] = []
@@ -30,16 +32,16 @@ public class DownloadManager: NSObject, NSURLConnectionDataDelegate {
     
     class Download: Equatable {
         
-        let url:      NSURL
+        let url:      URL
         let filePath: String
         
-        let stream:     NSOutputStream
+        let stream:     OutputStream
         let connection: NSURLConnection
         
         var totalSize: UInt64
         var downloadedSize: UInt64 = 0
         
-        var indexPath: NSIndexPath
+        var indexPath: IndexPath
         
         // Variables used for calculating average download speed
         // The lower the interval (downloadSampleInterval) the higher the accuracy (fluctuations)
@@ -53,15 +55,15 @@ public class DownloadManager: NSObject, NSURLConnectionDataDelegate {
         
         internal var samples: [UInt64] = []
         internal var sampleTimer: Timer?
-        internal var lastAverageCalculated = NSDate()
+        internal var lastAverageCalculated = Date()
         
         internal var bytesWritten = 0
-        internal let queue = dispatch_queue_create("dk.dr.radioapp.DownloadManager.SampleQueue", DISPATCH_QUEUE_CONCURRENT)
+        internal let queue = DispatchQueue(label: "dk.dr.radioapp.DownloadManager.SampleQueue", attributes: DispatchQueue.Attributes.concurrent)
         
         var averageDownloadSpeed: UInt64 = UInt64.max
         
-        init(url: NSURL, filePath: String, totalSize: UInt64, connection: NSURLConnection, indexPath: NSIndexPath) {
-            dispatch_set_target_queue(self.queue, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0))
+        init(url: URL, filePath: String, totalSize: UInt64, connection: NSURLConnection, indexPath: IndexPath) {
+            self.queue.setTarget(queue: DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.background))
             
             self.url       = url
             self.filePath  = filePath
@@ -69,35 +71,38 @@ public class DownloadManager: NSObject, NSURLConnectionDataDelegate {
             
             self.indexPath = indexPath
             
-            if let dict: NSDictionary = NSFileManager.defaultManager().attributesOfItemAtPath(self.filePath, error: nil) {
+            do{
+                let dict: NSDictionary = try FileManager.default.attributesOfItem(atPath: self.filePath) as NSDictionary
                 self.downloadedSize = dict.fileSize()
+            }catch {
+                print(error.localizedDescription)
             }
             
-            self.stream     = NSOutputStream(toFileAtPath: self.filePath, append: self.downloadedSize > 0)!
+            self.stream     = OutputStream(toFileAtPath: self.filePath, append: self.downloadedSize > 0)!
             self.connection = connection
             
-            self.stream.scheduleInRunLoop(NSRunLoop.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+            self.stream.schedule(in: RunLoop.main, forMode: RunLoopMode.defaultRunLoopMode)
             self.stream.open()
             
             self.sampleTimer?.invalidate()
             self.sampleTimer = Timer(interval: self.sampleInterval, repeats: true, pauseInBackground: true, block: { [weak self] () -> () in
                 if let strongSelf = self {
-                    dispatch_sync(strongSelf.queue, { () -> Void in
+                    strongSelf.queue.sync(execute: { () -> Void in
                         strongSelf.samples.append(UInt64(strongSelf.bytesWritten))
                         
                         let diff = strongSelf.samples.count - strongSelf.sampledBytesTotal
                         
                         if diff > 0 {
                             for i in (0...diff - 1) {
-                                strongSelf.samples.removeAtIndex(0)
+                                strongSelf.samples.remove(at: 0)
                             }
                         }
                         
                         strongSelf.bytesWritten = 0
                         
-                        let now = NSDate()
+                        let now = Date()
                         
-                        if now.timeIntervalSinceDate(strongSelf.lastAverageCalculated) >= 5 && strongSelf.samples.count >= strongSelf.sampledBytesTotal {
+                        if now.timeIntervalSince(strongSelf.lastAverageCalculated) >= 5 && strongSelf.samples.count >= strongSelf.sampledBytesTotal {
                             var totalBytes: UInt64 = 0
                             
                             for sample in strongSelf.samples {
@@ -112,11 +117,11 @@ public class DownloadManager: NSObject, NSURLConnectionDataDelegate {
                 })
         }
         
-        func write(data: NSData) {
-            let written = self.stream.write(UnsafePointer<UInt8>(data.bytes), maxLength: data.length)
+        func write(_ data: Data) {
+            let written = self.stream.write((data as NSData).bytes.bindMemory(to: UInt8.self, capacity: data.count), maxLength: data.count)
             
             if written > 0 {
-                dispatch_async(self.queue, { () -> Void in
+                self.queue.async(execute: { () -> Void in
                     self.bytesWritten += written
                 })
             }
@@ -151,7 +156,7 @@ extension DownloadManager {
 
 extension DownloadManager {
     
-    internal func downloadForConnection(connection: NSURLConnection) -> Download? {
+    internal func downloadForConnection(_ connection: NSURLConnection) -> Download? {
         var result: Download? = nil
         
         sync {
@@ -166,12 +171,12 @@ extension DownloadManager {
         return result
     }
     
-    internal func sync(closure: () -> Void) {
-        dispatch_sync(self.queue, closure)
+    internal func sync(_ closure: () -> Void) {
+        self.queue.sync(execute: closure)
     }
     
-    internal func async(closure: () -> Void) {
-        dispatch_async(self.queue, closure)
+    internal func async(_ closure: @escaping () -> Void) {
+        self.queue.async(execute: closure)
     }
     
 }
@@ -179,31 +184,30 @@ extension DownloadManager {
 // MARK: Public methods
 
 extension DownloadManager {
-    
-    public func subscribe(delegate: DownloadManagerDelegate) {
+
+    public func subscribe(_ delegate: DownloadManagerDelegate) {
         async {
-            for (index, d) in enumerate(self.delegates) {
-                if delegate === d {
+            for (index, d) in self.delegates.enumerated() {
+                if delegate.equals(otherObject: d) {
                     return
                 }
             }
-            
             self.delegates.append(delegate)
         }
     }
     
-    public func unsubscribe(delegate: DownloadManagerDelegate) {
+    public func unsubscribe(_ delegate: DownloadManagerDelegate) {
         async {
-            for (index, d) in enumerate(self.delegates) {
-                if delegate === d {
-                    self.delegates.removeAtIndex(index)
+            for (index, d) in self.delegates.enumerated() {
+                if delegate.equals(otherObject: d) {
+                    self.delegates.remove(at: index)
                     return
                 }
             }
         }
     }
     
-    public func isDownloading(url: NSURL) -> Bool {
+    public func isDownloading(_ url: URL) -> Bool {
         var result = false
         
         sync {
@@ -218,26 +222,37 @@ extension DownloadManager {
         return result
     }
     
-    public func download(currentAudio: TrackList, indexPath: NSIndexPath) -> Bool {
-        var documentsPath = (NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! NSString)//.stringByAppendingPathComponent("Audio")
-        let path = documentsPath.stringByAppendingPathComponent("\(currentAudio.artist) - \(currentAudio.title).mp3")
+    public func download(_ currentAudio: TrackList, indexPath: IndexPath) -> Bool {
+        let documentsPath = (NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] as NSString)//.stringByAppendingPathComponent("Audio")
+        let path = documentsPath.appendingPathComponent("\(currentAudio.artist) - \(currentAudio.title).mp3")
         
-        if self.isDownloading(currentAudio.url) {
+        if self.isDownloading(currentAudio.url as URL) {
             return true
         }
     
-        var request = NSMutableURLRequest(URL: currentAudio.url)
+        let request = NSMutableURLRequest(url: currentAudio.url as URL)
         
-        if let dict: NSDictionary = NSFileManager.defaultManager().attributesOfItemAtPath(path, error: nil) {
+        do {
+            let dict: NSDictionary = try FileManager.default.attributesOfItem(atPath:path) as NSDictionary
             request.addValue("bytes=\(dict.fileSize())-", forHTTPHeaderField: "Range")
+
+        }catch {
+            print(error.localizedDescription)
+        }
+        do {
+            let dict: NSDictionary = try FileManager.default.attributesOfItem(atPath:path) as NSDictionary
+            request.addValue("bytes=\(dict.fileSize())-", forHTTPHeaderField: "Range")
+
+        } catch {
+            print(error.localizedDescription)
         }
         
-        if let connection = NSURLConnection(request: request, delegate: self, startImmediately: false) {
+        if let connection = NSURLConnection(request: request as URLRequest, delegate: self, startImmediately: false) {
             sync {
-                self.downloads.append(Download(url: currentAudio.url, filePath: path, totalSize: 0, connection: connection, indexPath: indexPath))
+                self.downloads.append(Download(url: currentAudio.url as URL, filePath: path, totalSize: 0, connection: connection, indexPath: indexPath))
             }
             
-            connection.scheduleInRunLoop(NSRunLoop.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+            connection.schedule(in: RunLoop.main, forMode: RunLoopMode.defaultRunLoopMode)
             connection.start()
             
             return true
@@ -246,17 +261,19 @@ extension DownloadManager {
         return false
     }
     
-    public func removeAudio(audioFilename: String){
-        var documentsPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
+    public func removeAudio(_ audioFilename: String){
+        let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] 
         //let audioPath = documentsPath.stringByAppendingPathComponent("Audio")
-        let audioFileURL = NSURL(fileURLWithPath:documentsPath.stringByAppendingPathComponent(audioFilename))
-        var error: NSError?
-        if !NSFileManager.defaultManager().removeItemAtURL(audioFileURL!, error: &error) {
-            println("Error while removing audio from cache: \(error?.localizedDescription)")
+        let audioFileURL = URL(fileURLWithPath:documentsPath + "/\(audioFilename)")
+        do {
+            try FileManager.default.removeItem(at:audioFileURL)
+        }
+        catch {
+            print("Error while removing audio from cache: \(error.localizedDescription)")
         }
     }
     
-    public func stopDownloading(url: NSURL) {
+    public func stopDownloading(_ url: URL) {
         sync {
             for download in self.downloads {
                 if download.url == url {
@@ -286,7 +303,7 @@ extension DownloadManager {
 
 extension DownloadManager {
     
-    public func connection(connection: NSURLConnection, didReceiveResponse response: NSURLResponse) {
+    public func connection(_ connection: NSURLConnection, didReceive response: URLResponse) {
         if let download = self.downloadForConnection(connection) {
             let contentLength = response.expectedContentLength
             
@@ -300,23 +317,23 @@ extension DownloadManager {
         }
     }
     
-    public func connection(connection: NSURLConnection, didReceiveData data: NSData) {
+    public func connection(_ connection: NSURLConnection, didReceive data: Data) {
         if let download = self.downloadForConnection(connection) {
             var percentage: Double = 0
-            var remaining: NSTimeInterval = NSTimeInterval.NaN
+            var remaining: TimeInterval = TimeInterval.nan
             
             sync {
                 download.write(data)
-                download.downloadedSize += UInt64(data.length)
+                download.downloadedSize += UInt64(data.count)
                 
                 if download.totalSize > 0 {
                     percentage = Double(download.downloadedSize) / Double(download.totalSize)
                     
                     if download.averageDownloadSpeed != UInt64.max {
                         if download.averageDownloadSpeed == 0 {
-                            remaining = NSTimeInterval.infinity
+                            remaining = TimeInterval.infinity
                         } else {
-                            remaining = NSTimeInterval((download.totalSize - download.downloadedSize) / download.averageDownloadSpeed)
+                            remaining = TimeInterval((download.totalSize - download.downloadedSize) / download.averageDownloadSpeed)
                         }
                     }
                 }
@@ -337,11 +354,11 @@ extension DownloadManager {
         }
     }
     
-    public func connection(connection: NSURLConnection, didFailWithError error: NSError) {
+    public func connection(_ connection: NSURLConnection, didFailWithError error: Error) {
         if let download = self.downloadForConnection(connection) {
             sync {
                 for delegate in self.delegates {
-                    delegate.downloadManager(self, downloadDidFail: download.url, error: error, indexPath: download.indexPath)
+                    delegate.downloadManager(self, downloadDidFail: download.url, error: error as NSError, indexPath: download.indexPath)
                 }
                 
                 download.close()
@@ -351,7 +368,7 @@ extension DownloadManager {
         }
     }
     
-    public func connectionDidFinishLoading(connection: NSURLConnection) {
+    public func connectionDidFinishLoading(_ connection: NSURLConnection) {
         if let download = self.downloadForConnection(connection) {
             sync {
                 for delegate in self.delegates {

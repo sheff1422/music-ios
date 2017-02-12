@@ -13,9 +13,9 @@ import MediaPlayer
 class DownloadedFilesVC: UIViewController {
     
     @IBOutlet weak var tableView: UITableView!
-    @IBOutlet private var controlBar: PlayerControlBar?
-    @IBOutlet private var volumeView: MPVolumeView?
-    @IBOutlet private var blurAlbumArtworkImageView: UIImageView?
+    @IBOutlet fileprivate var controlBar: PlayerControlBar?
+    @IBOutlet fileprivate var volumeView: MPVolumeView?
+    @IBOutlet fileprivate var blurAlbumArtworkImageView: UIImageView?
     @IBOutlet weak var searchBar: UISearchBar!
     @IBOutlet weak var shuffleBtn: MKButton!
     @IBOutlet weak var repeatBtn: MKButton!
@@ -23,7 +23,7 @@ class DownloadedFilesVC: UIViewController {
     var downloadedFiles = [PlaylistItem]()
     var kCellIdentifier = "PlaylistTableViewCell"
     
-    private var player: MusicPlayer?
+    fileprivate var player: MusicPlayer?
     
     var searcher = UISearchController()
     var searching = false
@@ -35,7 +35,7 @@ class DownloadedFilesVC: UIViewController {
         super.viewDidLoad()
         
         self.blurAlbumArtworkImageView?.image = UIImage(named: "black.jpg")
-        self.repeatBtn.setImage(UIImage(named: "repeat"), forState: UIControlState.Normal)
+        self.repeatBtn.setImage(UIImage(named: "repeat"), for: UIControlState())
         player = MusicPlayer()
         player?.delegate = self
         controlBar?.player = player
@@ -45,63 +45,66 @@ class DownloadedFilesVC: UIViewController {
         volumeView?.sizeToFit()
         self.getPlayList()
         
-        self.tableView.separatorColor = UIColor.Colors.Grey.colorWithAlphaComponent(0.3)
-        self.tableView.tableFooterView = UIView(frame: CGRectZero)
+        self.tableView.separatorColor = UIColor.Colors.Grey.withAlphaComponent(0.3)
+        self.tableView.tableFooterView = UIView(frame: CGRect.zero)
         self.searchBar.sizeToFit()
-        var textFieldInsideSearchBar = self.searchBar.valueForKey("searchField") as? UITextField
-        textFieldInsideSearchBar?.textColor = UIColor.whiteColor()
-        repeat()
-        self.view.backgroundColor = UIColor.clearColor()
+        let textFieldInsideSearchBar = self.searchBar.value(forKey: "searchField") as? UITextField
+        textFieldInsideSearchBar?.textColor = UIColor.white
+        repeatPlay()
+        self.view.backgroundColor = UIColor.clear
         self.tableView.addPullToRefresh({ [weak self] in
             self?.getPlayList()
             self?.tableView.stopPullToRefresh()
             })
     }
     
-    override func viewDidAppear(animated: Bool) {
+    override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        UIApplication.sharedApplication().beginReceivingRemoteControlEvents()
+        UIApplication.shared.beginReceivingRemoteControlEvents()
         becomeFirstResponder()
         self.tableView.setContentOffset(
-            CGPointMake(0, 44),
+            CGPoint(x: 0, y: 44),
             animated:true)
     }
     
-    override func viewDidDisappear(animated: Bool) {
+    override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        UIApplication.sharedApplication().endReceivingRemoteControlEvents()
+        UIApplication.shared.endReceivingRemoteControlEvents()
         player?.pause()
     }
     
     //MARK: - events received from phone
-    override func remoteControlReceivedWithEvent(event: UIEvent) {
+    override func remoteControlReceived(with event: UIEvent?) {
+        guard let event = event else {
+            return
+        }
         player?.remoteControlReceivedWithEvent(event)
 
         switch event.subtype {
-        case .RemoteControlPlay:
+        case .remoteControlPlay:
             player?.play()
-        case .RemoteControlPause:
+        case .remoteControlPause:
             player?.pause()
         default:
-            println("received sub type \(event.subtype) Ignoring")
+            print("received sub type \(event.subtype) Ignoring")
         }
 
     }
     
-    override func canBecomeFirstResponder() -> Bool {
+    override var canBecomeFirstResponder : Bool {
         //allow this instance to receive remote control events
         return true
     }
     
     func getPlayList(){
-        player?.playlist.removeAll(keepCapacity: false)
+        player?.playlist.removeAll(keepingCapacity: false)
         let items: [PlaylistItem] = getDownloadedAudioFiles() as! [PlaylistItem]
         self.originalSectionData = items
         self.currentPlayList = items
-        player?.playlist.extend(items)
+        player?.playlist.append(contentsOf:items)
         self.tableView.reloadData()
         self.tableView.setContentOffset(
-            CGPointMake(0, 44),
+            CGPoint(x: 0, y: 44),
             animated:true)
     }
     
@@ -110,40 +113,40 @@ class DownloadedFilesVC: UIViewController {
         tableView?.reloadData()
     }
     
-    func repeat(){
-        var repeat: Bool = false
-        if let bool = NSUserDefaults.standardUserDefaults().valueForKey("repeat") as? Bool {
-            repeat = bool
+    func repeatPlay(){
+        var repeatPlay: Bool = false
+        if let bool = UserDefaults.standard.value(forKey: "repeat") as? Bool {
+            repeatPlay = bool
         }
-        if (repeat) {
+        if (repeatPlay) {
             repeatBtn.backgroundColor = UIColor.Colors.BlueGrey
         }else{
-            repeatBtn.backgroundColor = UIColor.clearColor()
+            repeatBtn.backgroundColor = UIColor.clear
         }
     }
     
-    @IBAction func repeatAction(sender: UIButton) {
-        var repeat: Bool = false
-        if let bool = NSUserDefaults.standardUserDefaults().valueForKey("repeat") as? Bool {
-            repeat = !bool
+    @IBAction func repeatAction(_ sender: UIButton) {
+        var repeatPlay: Bool = false
+        if let bool = UserDefaults.standard.value(forKey: "repeat") as? Bool {
+            repeatPlay = !bool
         }
         
-        if (repeat) {
+        if (repeatPlay) {
             repeatBtn.backgroundColor = UIColor.Colors.BlueGrey
         }else{
-            repeatBtn.backgroundColor = UIColor.clearColor()
+            repeatBtn.backgroundColor = UIColor.clear
         }
-        NSUserDefaults.standardUserDefaults().setBool(repeat, forKey: "repeat")
+        UserDefaults.standard.setValue(repeatPlay, forKey: "repeat")
     }
     
-    @IBAction func shuffleAction(sender: UIButton) {
+    @IBAction func shuffleAction(_ sender: UIButton) {
         shufflePlaylist()
     }
    
 }
 
 extension DownloadedFilesVC: MusicPlayerDelegate {
-    func player(playlistPlayer: MusicPlayer, didChangeCurrentPlaylistItem playlistItem: PlaylistItem?) {
+    func player(_ playlistPlayer: MusicPlayer, didChangeCurrentPlaylistItem playlistItem: PlaylistItem?) {
         if (playlistItem?.artwork != nil){
             blurAlbumArtworkImageView?.image = playlistItem?.artwork
         }
@@ -154,8 +157,8 @@ extension DownloadedFilesVC: MusicPlayerDelegate {
             title = playlistItem!.title!
             artist = playlistItem!.artist!
         }else{
-            var filename: AnyObject? = playlistItem!.asset!.valueForKey("URL")
-            if let name = filename?.lastPathComponent.componentsSeparatedByString(" - "){
+            let filename: AnyObject? = playlistItem!.asset.value(forKey: "URL") as AnyObject?
+            if let name = filename?.lastPathComponent.components(separatedBy: " - "){
                 title = name[1]
                 artist = name[0]
             }
@@ -164,9 +167,9 @@ extension DownloadedFilesVC: MusicPlayerDelegate {
         if playlistItem?.artwork != nil{
             artImage = playlistItem?.artwork
         }
-        var artwork = MPMediaItemArtwork(image: artImage)
+        let artwork = MPMediaItemArtwork(image: artImage!)
         
-        MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = [MPMediaItemPropertyTitle: title as String , MPMediaItemPropertyArtist: artist as String, MPMediaItemPropertyArtwork: artwork]
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [MPMediaItemPropertyTitle: title as String , MPMediaItemPropertyArtist: artist as String, MPMediaItemPropertyArtwork: artwork]
         
         tableView?.reloadData()
     }
@@ -174,7 +177,7 @@ extension DownloadedFilesVC: MusicPlayerDelegate {
 
 extension DownloadedFilesVC: UITableViewDataSource, UITableViewDelegate {
 
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if let player = self.player {
             return player.playlist.count
         } else {
@@ -182,9 +185,9 @@ extension DownloadedFilesVC: UITableViewDataSource, UITableViewDelegate {
         }
     }
     
-    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
-        let cell = tableView.dequeueReusableCellWithIdentifier("PlaylistTableViewCell") as! PlaylistTableViewCell
+        let cell = tableView.dequeueReusableCell(withIdentifier: "PlaylistTableViewCell") as! PlaylistTableViewCell
         
         let item = player?.playlist[indexPath.row]
         
@@ -196,8 +199,8 @@ extension DownloadedFilesVC: UITableViewDataSource, UITableViewDelegate {
         if item?.title != nil && item?.title != "untitled" {
             cell.titleLabel?.text = item?.title
         }else{
-            var filename: AnyObject? = self.player?.playlist[indexPath.row].asset!.valueForKey("URL")
-            if let name = filename?.lastPathComponent.componentsSeparatedByString(" - "){
+            let filename: AnyObject? = self.player?.playlist[indexPath.row].asset.value(forKey: "URL") as AnyObject?
+            if let name = filename?.lastPathComponent.components(separatedBy: " - "){
                 cell.titleLabel?.text = name[1]
                 cell.artistAndAlbumNameLabel?.text = name[0]
             }
@@ -207,68 +210,68 @@ extension DownloadedFilesVC: UITableViewDataSource, UITableViewDelegate {
         }
         
         if player?.currentItem == item {
-            cell.titleLabel?.textColor = UIColor.grayColor().colorWithAlphaComponent(0.5)
-            cell.artistAndAlbumNameLabel?.textColor = UIColor.grayColor().colorWithAlphaComponent(0.5)
+            cell.titleLabel?.textColor = UIColor.gray.withAlphaComponent(0.5)
+            cell.artistAndAlbumNameLabel?.textColor = UIColor.gray.withAlphaComponent(0.5)
         } else {
-            cell.titleLabel?.textColor = UIColor.whiteColor()
-            cell.artistAndAlbumNameLabel?.textColor = UIColor.whiteColor()
+            cell.titleLabel?.textColor = UIColor.white
+            cell.artistAndAlbumNameLabel?.textColor = UIColor.white
         }
 
         return cell
     }
     
-    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         player?.setCurrentItemFromIndex(indexPath.row)
     }
     
-    func tableView(tableView: UITableView, willDisplayCell cell: UITableViewCell, forRowAtIndexPath indexPath: NSIndexPath) {
-        cell.backgroundColor = UIColor.clearColor()
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cell.backgroundColor = UIColor.clear
     }
     
-    func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [AnyObject]?  {
+    func tableView(_ tableView: UITableView, editActionsForRowAtIndexPath indexPath: IndexPath) -> [AnyObject]?  {
         
-        var deleteSongAction = UITableViewRowAction(style: UITableViewRowActionStyle.Default, title: "delete", handler: { (action:UITableViewRowAction!, indexPath:NSIndexPath!) -> Void in
-            var filename: AnyObject? = self.player?.playlist[indexPath.row].asset!.valueForKey("URL")
+        let deleteSongAction = UITableViewRowAction(style: UITableViewRowActionStyle.default, title: "delete", handler: { (action:UITableViewRowAction!, indexPath:IndexPath!) -> Void in
+            let filename: AnyObject? = self.player?.playlist[indexPath.row].asset.value(forKey: "URL") as AnyObject?
             DownloadManager.sharedInstance.removeAudio(filename!.lastPathComponent)
-            self.player?.playlist.removeAtIndex(indexPath.row)
+            self.player?.playlist.remove(at: indexPath.row)
     
-            self.tableView.deleteRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Automatic)
+            self.tableView.deleteRows(at: [indexPath], with: UITableViewRowAnimation.automatic)
         })
         return [deleteSongAction]
     }
     
-    func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
     }
 }
 
 extension DownloadedFilesVC: UISearchBarDelegate {
     
-    func searchBar(searchBar: UISearchBar, textDidChange searchText: String) {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         let target = searchText
         
         if target == "" {
-            player?.playlist.removeAll(keepCapacity: false)
-            player?.playlist.extend(self.originalSectionData)
+            player?.playlist.removeAll(keepingCapacity: false)
+            player?.playlist.append(contentsOf:self.originalSectionData)
             self.tableView.reloadData()
             return
         }
         self.currentPlayList = self.originalSectionData.filter({( file : PlaylistItem) -> Bool in
-                var stringMatch = file.title!.rangeOfString(target, options:
-                    NSStringCompareOptions.CaseInsensitiveSearch)
+                var stringMatch = file.title!.range(of: target, options:
+                    NSString.CompareOptions.caseInsensitive)
                 return (stringMatch != nil)
         })
-        player?.playlist.removeAll(keepCapacity: false)
-        player?.playlist.extend(self.currentPlayList)
+        player?.playlist.removeAll(keepingCapacity: false)
+        player?.playlist.append(contentsOf:self.currentPlayList)
         self.tableView.reloadData()
     }
     
-    func searchBarSearchButtonClicked(searchBar: UISearchBar) {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         self.searchBar.resignFirstResponder()
     }
 }
 
 extension DownloadedFilesVC: UIScrollViewDelegate {
-    func scrollViewDidScroll(scrollView: UIScrollView) {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
         self.searchBar.resignFirstResponder()
     }
 }

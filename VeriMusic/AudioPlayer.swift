@@ -13,39 +13,39 @@ import AVFoundation
 class AudioPlayer: NSObject{
     
     enum PlaybackState {
-        case Play
-        case Pause
-        case Stop
+        case play
+        case pause
+        case stop
     }
     
     enum PlaybackOption {
-        case Continious
-        case Shuffle
-        case Repeat
+        case continious
+        case shuffle
+        case `repeat`
     }
     
-    var state: PlaybackState = .Stop
-    var option: PlaybackOption = .Continious
+    var state: PlaybackState = .stop
+    var option: PlaybackOption = .continious
     
-    private var player: AVQueuePlayer!
+    fileprivate var player: AVQueuePlayer!
     var currentAudio: TrackList?{
         didSet{
             switch self.currentAudio {
-            case .Some:
+            case .some:
                 
                 let caURL = self.currentAudio!.url
                 //let URL = caURL.scheme! + "://" + caURL.host! + caURL.path!
                 //let nURL = NSURL(string: URL)
                 var error: NSError?
-                self.player = AVQueuePlayer(playerItem: AVPlayerItem(URL: caURL))
+                self.player = AVQueuePlayer(playerItem: AVPlayerItem(url: caURL as URL))
                 //self.player.replaceCurrentItemWithPlayerItem(AVPlayerItem(URL: caURL))
  
                 switch error{
-                case .Some:
-                    println("Error while creating AVAudioPlayer with url \(self.currentAudio!.url): \(error!.localizedDescription)")
+                case .some:
+                    print("Error while creating AVAudioPlayer with url \(self.currentAudio!.url): \(error!.localizedDescription)")
                     
-                case .None:
-                    println("none\(error)")
+                case .none:
+                    print("none\(error)")
                     return
                 }
             default:
@@ -57,10 +57,10 @@ class AudioPlayer: NSObject{
     var duration : Double {
         get {
             switch self.player.currentItem {
-            case .Some:
-                return Double(CMTimeGetSeconds(self.player.currentItem.asset.duration))
+            case .some:
+                return Double(CMTimeGetSeconds(self.player.currentItem!.asset.duration))
                 
-            case .None:
+            case .none:
                 return 0
             }
         }
@@ -69,18 +69,18 @@ class AudioPlayer: NSObject{
     var currentTime : Double{
         get {
             switch self.player.currentItem {
-            case .Some:
-                return Double(CMTimeGetSeconds(self.player.currentItem.currentTime()))
+            case .some:
+                return Double(CMTimeGetSeconds(self.player.currentItem!.currentTime()))
                 
-            case .None:
+            case .none:
                 return 0
             }
         }
     }
     
-    func seekToTime(time: Double){
+    func seekToTime(_ time: Double){
         let targetTime = CMTimeMakeWithSeconds(time, Int32(NSEC_PER_SEC))
-        self.player.seekToTime(targetTime, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
+        self.player.seek(to: targetTime, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
     }
     
     
@@ -93,17 +93,17 @@ class AudioPlayer: NSObject{
     
     func play(){
         self.player.play()
-        self.state = .Play
+        self.state = .play
     }
     
     func pause(){
         self.player.pause()
-        self.state = .Pause
+        self.state = .pause
     }
     
     func stop(){
         self.player.pause()
-        self.state = .Stop
+        self.state = .stop
     }
     
     

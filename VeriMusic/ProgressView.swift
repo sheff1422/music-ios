@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-public class ProgressView {
+open class ProgressView {
     
     var containerView = UIView()
     var progressView = UIView()
@@ -22,23 +22,23 @@ public class ProgressView {
         return Static.instance
     }
     
-    func showProgressView(view: UIView) {
-        //println(view.frame)
-        containerView.frame = UIScreen.mainScreen().applicationFrame
+    func showProgressView(_ view: UIView) {
+        //print(view.frame)
+        containerView.frame = UIScreen.main.applicationFrame
 
         containerView.center = view.center
         
-        containerView.backgroundColor = UIColor.clearColor()//UIColor.blackColor().colorWithAlphaComponent(0.3)
+        containerView.backgroundColor = UIColor.clear//UIColor.blackColor().colorWithAlphaComponent(0.3)
         
-        progressView.frame = CGRectMake(0, 0, 80, 80)
+        progressView.frame = CGRect(x: 0, y: 0, width: 80, height: 80)
         progressView.center = view.center
-        progressView.backgroundColor = UIColor.grayColor().colorWithAlphaComponent(0.2)
+        progressView.backgroundColor = UIColor.gray.withAlphaComponent(0.2)
         progressView.clipsToBounds = true
         progressView.layer.cornerRadius = 10
         
-        activityIndicator.frame = CGRectMake(0, 0, 80, 80)
-        activityIndicator.activityIndicatorViewStyle = UIActivityIndicatorViewStyle.Gray
-        activityIndicator.center = CGPointMake(progressView.bounds.width / 2, progressView.bounds.height / 2)
+        activityIndicator.frame = CGRect(x: 0, y: 0, width: 80, height: 80)
+        activityIndicator.activityIndicatorViewStyle = UIActivityIndicatorViewStyle.gray
+        activityIndicator.center = CGPoint(x: progressView.bounds.width / 2, y: progressView.bounds.height / 2)
         
         progressView.addSubview(activityIndicator)
         containerView.addSubview(progressView)

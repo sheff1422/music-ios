@@ -18,15 +18,15 @@ class PlayMusic: UIViewController {
     @IBOutlet weak var lbl_title: UILabel!
     
     var currentPage: Int = 0
-    private var previousPage: Int = 0
-    var ticker: NSTimer?
+    fileprivate var previousPage: Int = 0
+    var ticker: Foundation.Timer?
     var trackList = [TrackList]()
     var index = 0
     
     override var preferredContentSize: CGSize {
         get {
             if backView != nil && presentingViewController != nil {
-                var height = presentingViewController!.view.bounds.size.height
+                let height = presentingViewController!.view.bounds.size.height
                 var size = CGSize(width: 200, height: height)
                 return backView.sizeThatFits(presentingViewController!.view.bounds.size)
             }else
@@ -39,28 +39,28 @@ class PlayMusic: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        ticker = NSTimer.scheduledTimerWithTimeInterval(1.0, target: self, selector: "tick", userInfo: nil, repeats: true)
+        ticker = Foundation.Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(PlayMusic.tick), userInfo: nil, repeats: true)
         
     }
     
-    override func viewWillAppear(animated: Bool) {
+    override func viewWillAppear(_ animated: Bool) {
         refreshState()
         refreshPlayPauseButton()
         ProgressView.shared.hideProgressView()
     }
     
-    override func viewWillDisappear(animated: Bool) {
+    override func viewWillDisappear(_ animated: Bool) {
         ticker?.invalidate()
     }
     
-    @IBAction func progressSliderValueChanged(sender: AnyObject) {
+    @IBAction func progressSliderValueChanged(_ sender: AnyObject) {
         refreshTimeLabels()
         AudioPlayer.sharedInstance.seekToTime(Double(self.progressSlider.value))
     }
     
     func refreshState(){
         switch AudioPlayer.sharedInstance.currentAudio {
-        case .Some(let audio):
+        case .some(let audio):
             self.lbl_title.text = "\(audio.artist) - \(audio.title)"
             self.progressSlider.minimumValue = 0.0
             self.progressSlider.maximumValue = Float(AudioPlayer.sharedInstance.duration)
@@ -74,22 +74,22 @@ class PlayMusic: UIViewController {
     }
     
     func refreshTimeLabels(){
-        self.lastLabel.text = formatTimeInterval(NSTimeInterval(self.progressSlider.value))
-        self.restLabel.text = formatTimeInterval(NSTimeInterval(self.progressSlider.maximumValue - self.progressSlider.value))
+        self.lastLabel.text = formatTimeInterval(TimeInterval(self.progressSlider.value))
+        self.restLabel.text = formatTimeInterval(TimeInterval(self.progressSlider.maximumValue - self.progressSlider.value))
     }
     
     func refreshPlayPauseButton(){
         var playButtonImageName: String = ""
         switch AudioPlayer.sharedInstance.state {
-        case .Play:
+        case .play:
             playButtonImageName = "ic_pause_asphalt.png"
             
-        case .Pause, .Stop:
+        case .pause, .stop:
             playButtonImageName = "ic_play_asphalt.png"
             
         }
         
-        playPauseButton.setImage(UIImage(named: playButtonImageName), forState: UIControlState.Normal)
+        playPauseButton.setImage(UIImage(named: playButtonImageName), for: UIControlState())
     }
     
     func tick(){
@@ -97,8 +97,8 @@ class PlayMusic: UIViewController {
         refreshTimeLabels()
     }
     
-    func formatTimeInterval(interval: NSTimeInterval) -> String {
-        let seconds = Int(interval % 60.0)
+    func formatTimeInterval(_ interval: TimeInterval) -> String {
+        let seconds = Int(interval.truncatingRemainder(dividingBy: 60.0))
         let secondsString = seconds < 10 ? "0\(seconds)" : "\(seconds)"
         
         let minutes = Int(interval / 60.0)
@@ -107,13 +107,13 @@ class PlayMusic: UIViewController {
         return "\(minutesString):\(secondsString)"
     }
     
-    @IBAction func PlayeBtn(sender: AnyObject) {
+    @IBAction func PlayeBtn(_ sender: AnyObject) {
 
         switch AudioPlayer.sharedInstance.state {
-        case .Play:
+        case .play:
             AudioPlayer.sharedInstance.pause()
             
-        case .Pause, .Stop:
+        case .pause, .stop:
             AudioPlayer.sharedInstance.play()
         }
         refreshPlayPauseButton()

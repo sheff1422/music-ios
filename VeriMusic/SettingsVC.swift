@@ -22,64 +22,64 @@ class SettingsVC: UIViewController {
         tableView.rowHeight = UITableViewAutomaticDimension
     }
     
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if (segue.identifier == "settingsList"){
             
         }
     }
     
-    @IBAction func switchChanged(sender: AnyObject) {
+    @IBAction func switchChanged(_ sender: AnyObject) {
 
-        var sw = sender as! UISwitch
-        var view = sw.superview
+        let sw = sender as! UISwitch
+        let view = sw.superview
         let cell = view?.superview as! SettingsCellWithSwitch
         
-        let indexPath = self.tableView.indexPathForCell(cell)
+        let indexPath = self.tableView.indexPath(for: cell)
         if indexPath!.section == 2{
-            NSUserDefaults.standardUserDefaults().setBool(sw.on, forKey: "performer_only")
+            UserDefaults.standard.set(sw.isOn, forKey: "performer_only")
         }
         if indexPath!.section == 3{
-            NSUserDefaults.standardUserDefaults().setBool(sw.on, forKey: "popular_songs")
+            UserDefaults.standard.set(sw.isOn, forKey: "popular_songs")
         }
     }
     
 }
 
 extension SettingsVC: UITableViewDataSource, UITableViewDelegate {
-    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    func numberOfSections(in tableView: UITableView) -> Int {
         return self.sectionNames.count
     }
     
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return self.sectionData[section].count
     }
     
-    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        var section = indexPath.section
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let section = indexPath.section
         
         if(section == 0 || section == 1)
         {
-            let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath) as! SettingsCell
+            let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath) as! SettingsCell
             let s = self.sectionData[indexPath.section][indexPath.row] as String
             cell.title.text = "\(s)"
             return cell
         }
         else if(section == 2 || section == 3){
-            let cell = tableView.dequeueReusableCellWithIdentifier("CellWithSwitch", forIndexPath: indexPath) as! SettingsCellWithSwitch
+            let cell = tableView.dequeueReusableCell(withIdentifier: "CellWithSwitch", for: indexPath) as! SettingsCellWithSwitch
             let s = self.sectionData[indexPath.section][indexPath.row] as String
             cell.title.text = s
             if section == 2 {
-                let switchBtn = NSUserDefaults.standardUserDefaults().boolForKey("performer_only")
-                cell.switchBtn.on = switchBtn
+                let switchBtn = UserDefaults.standard.bool(forKey: "performer_only")
+                cell.switchBtn.isOn = switchBtn
             }
             if section == 3 {
-                let switchBtn = NSUserDefaults.standardUserDefaults().boolForKey("popular_songs")
-                cell.switchBtn.on = switchBtn
+                let switchBtn = UserDefaults.standard.bool(forKey: "popular_songs")
+                cell.switchBtn.isOn = switchBtn
             }
             return cell
         }
         else {
-            let cell = tableView.dequeueReusableCellWithIdentifier("CellUnSegue", forIndexPath: indexPath) as! SettingsCellUnSegue
+            let cell = tableView.dequeueReusableCell(withIdentifier: "CellUnSegue", for: indexPath) as! SettingsCellUnSegue
             let s = self.sectionData[indexPath.section][indexPath.row] as String
             cell.title.text = s
             return cell
@@ -87,15 +87,15 @@ extension SettingsVC: UITableViewDataSource, UITableViewDelegate {
         
     }
     
-    func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if !self.sectionNames[section].isEmpty {
             return self.sectionNames[section] as String
         }
         return ""
     }
     
-    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
-        var settingsSort = self.storyboard?.instantiateViewControllerWithIdentifier("SettingsList") as! SettingsSort
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let settingsSort = self.storyboard?.instantiateViewController(withIdentifier: "SettingsList") as! SettingsSort
         switch indexPath.section {
         case 0 :
             settingsSort.settingType = indexPath.section

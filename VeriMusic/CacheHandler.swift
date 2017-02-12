@@ -10,21 +10,21 @@ import Foundation
 import UIKit
 
 public protocol VFCacheHandlerDelegate: class {
-    func downloadManager(result: String)
+    func downloadManager(_ result: String)
 }
 
-public class VFCacheHandler : NSObject, NSURLSessionDownloadDelegate {
+open class VFCacheHandler : NSObject, URLSessionDownloadDelegate {
     
-    private var backgroundSession: NSURLSession?
-    private var dictionary = Dictionary<NSURL, NSURL>()
+    fileprivate var backgroundSession: Foundation.URLSession?
+    fileprivate var dictionary = Dictionary<URL, URL>()
     
     internal var delegates: [VFCacheHandlerDelegate] = []
     
     override init() {
         super.init()
-        backgroundSession = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration(), delegate: self, delegateQueue: NSOperationQueue.mainQueue())
+        backgroundSession = Foundation.URLSession(configuration: URLSessionConfiguration.default, delegate: self, delegateQueue: OperationQueue.main)
     }
-    public class var sharedInstance: VFCacheHandler {
+    open class var sharedInstance: VFCacheHandler {
         struct Singleton {
             static let instance = VFCacheHandler()
         }
@@ -39,37 +39,37 @@ public class VFCacheHandler : NSObject, NSURLSessionDownloadDelegate {
         return Static.instance
     }*/
     
-    func downloadAudio(audio: TrackList){
-        let session = NSURLSession(configuration: NSURLSessionConfiguration.defaultSessionConfiguration(),
+    func downloadAudio(_ audio: TrackList){
+        let session = Foundation.URLSession(configuration: URLSessionConfiguration.default,
             delegate: self,
             delegateQueue: nil)
-        let downloadTask = session.downloadTaskWithURL(audio.url, completionHandler: { (location: NSURL!, response: NSURLResponse!, error: NSError!) -> Void in
+        let downloadTask = session.downloadTask(with: audio.url as URL, completionHandler: { (location: URL!, response: URLResponse!, error: NSError!) -> Void in
             switch (location, error){
-            case (.Some, .None):
+            case (.some, .none):
                 var filename = "\(audio.artist) - \(audio.title).mp3"
                 switch self.saveTemporaryAudioFromLocation(location, filename: filename) {
-                case .Some(let newLocation):
-                    println("New file location \(newLocation)")
+                case .some(let newLocation):
+                    print("New file location \(newLocation)")
                     self.sync {
                         for delegate in self.delegates {
                             delegate.downloadManager("--------------------\n")
                         }
                     }
-                    self.dictionary[audio.url] = newLocation
-                case .None:
+                    self.dictionary[audio.url as URL] = newLocation
+                case .none:
                     return
                 }
                 
-            case (.None, .None):
-                println("Empty location")
+            case (.none, .none):
+                print("Empty location")
                 
-            case (.None, .Some):
-                println("Error \(error.description)")
+            case (.none, .some):
+                print("Error \(error.description)")
                 
             default:
                 return
             }
-        })
+        } as! (URL?, URLResponse?, Error?) -> Void)
         
         downloadTask.resume()
     }
@@ -79,7 +79,7 @@ public class VFCacheHandler : NSObject, NSURLSessionDownloadDelegate {
         case .Some(let localURL):
             var error: NSError?
             if !NSFileManager.defaultManager().removeItemAtURL(localURL, error: &error) {
-                println("Error while removing audio from cache: \(error?.localizedDescription)")
+                print("Error while removing audio from cache: \(error?.localizedDescription)")
             } else {
                 self.dictionary.removeValueForKey(audio.remoteURL)
             }
@@ -89,66 +89,69 @@ public class VFCacheHandler : NSObject, NSURLSessionDownloadDelegate {
         }
     }*/
     
-    func removeAudio(audioFilename: String){
-        var documentsPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
-        let audioPath = documentsPath.stringByAppendingPathComponent("Audio")
-        let audioFileURL = NSURL(fileURLWithPath:audioPath.stringByAppendingPathComponent(audioFilename))
+    func removeAudio(_ audioFilename: String){
+        var documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] 
+        let audioPath = documentsPath + "/Audio"
+        let audioFileURL = URL(fileURLWithPath:audioPath + "/\(audioFilename)")
         var error: NSError?
-        if !NSFileManager.defaultManager().removeItemAtURL(audioFileURL!, error: &error) {
-            println("Error while removing audio from cache: \(error?.localizedDescription)")
-        } 
+        do { try FileManager.default.removeItem(at: audioFileURL)
+        } catch {
+            print("Error while removing audio from cache: \(error.localizedDescription)")
+        }
+        
     }
     
-    func localURLForAudio(audio: TrackList) -> NSURL?{
-        return self.dictionary[audio.remoteUrl]
+    func localURLForAudio(_ audio: TrackList) -> URL?{
+        return self.dictionary[audio.remoteUrl as URL]
     }
     
     //MARK: - NSURLSession Delegate methods
     
-    public func URLSession(session: NSURLSession, didBecomeInvalidWithError error: NSError?){
+    open func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?){
         
     }
     
-    public func URLSession(session: NSURLSession, didReceiveChallenge challenge: NSURLAuthenticationChallenge, completionHandler: (NSURLSessionAuthChallengeDisposition, NSURLCredential!) -> Void){
-        completionHandler(NSURLSessionAuthChallengeDisposition.PerformDefaultHandling, nil)
+    open func URLSession(_ session: Foundation.URLSession, didReceiveChallenge challenge: URLAuthenticationChallenge, completionHandler: (Foundation.URLSession.AuthChallengeDisposition, URLCredential?) -> Void){
+        completionHandler(Foundation.URLSession.AuthChallengeDisposition.performDefaultHandling, nil)
     }
     
-    public func URLSessionDidFinishEventsForBackgroundURLSession(session: NSURLSession){
+    open func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession){
         
     }
     
-    func saveTemporaryAudioFromLocation(location: NSURL, filename: String) -> NSURL?{
-        var documentsPath = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)[0] as! String
-        let audioPath = documentsPath.stringByAppendingPathComponent("Audio")
-        let audioFileURL = NSURL(fileURLWithPath:audioPath.stringByAppendingPathComponent(filename))
+    func saveTemporaryAudioFromLocation(_ location: URL, filename: String) -> URL?{
+        var documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0] 
+        let audioPath = documentsPath + "/Audio"
+        let audioFileURL = URL(fileURLWithPath:audioPath + "/\(filename)")
         
         var error: NSError?
         
-        if !NSFileManager.defaultManager().createDirectoryAtPath(audioPath, withIntermediateDirectories: true, attributes: nil, error: &error) {
-            println("Error while Audio folder creation: \(error?.localizedDescription)")
+        do {
+            try FileManager.default.createDirectory(atPath:audioPath, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("Error while Audio folder creation: \(error.localizedDescription)")
             return nil
         }
-        
-        
-        if NSFileManager.defaultManager().fileExistsAtPath(audioFileURL!.path!) {
-            println("File already exists!")
+
+        if FileManager.default.fileExists(atPath: audioFileURL.path) {
+            print("File already exists!")
             return audioFileURL
         }
-        
-        if NSFileManager.defaultManager().copyItemAtURL(location, toURL: audioFileURL!, error: &error) {
+        do {
+            try FileManager.default.copyItem(at: location, to: audioFileURL)
             return audioFileURL
-        } else {
-            println("Error while temp audio file replacing: \(error?.localizedDescription)")
+        } catch {
+            print("Error while temp audio file replacing: \(error.localizedDescription)")
             return nil
         }
     }
     
-    public func URLSession(session: NSURLSession, downloadTask: NSURLSessionDownloadTask, didFinishDownloadingToURL location: NSURL){
+    open func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL){
         
     }
     
     /* Sent periodically to notify the delegate of download progress. */
-    public func URLSession(session: NSURLSession, downloadTask: NSURLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64){
+    open func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64){
         
     }
     
@@ -157,25 +160,25 @@ public class VFCacheHandler : NSObject, NSURLSessionDownloadDelegate {
     * NSURLSessionDownloadTaskResumeData key, whose value is the resume
     * data.
     */
-    public func URLSession(session: NSURLSession, downloadTask: NSURLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64){
+    open func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64){
         
     }
-    internal let queue = dispatch_queue_create("io.persson.DownloadManager", DISPATCH_QUEUE_CONCURRENT)
+    internal let queue = DispatchQueue(label: "io.persson.DownloadManager", attributes: DispatchQueue.Attributes.concurrent)
     
-    internal func sync(closure: () -> Void) {
-        dispatch_sync(self.queue, closure)
+    internal func sync(_ closure: () -> Void) {
+        self.queue.sync(execute: closure)
     }
     
-    internal func async(closure: () -> Void) {
-        dispatch_async(self.queue, closure)
+    internal func async(_ closure: @escaping () -> Void) {
+        self.queue.async(execute: closure)
     }
 
 }
 extension VFCacheHandler {
     
-    public func subscribe(delegate: VFCacheHandlerDelegate) {
+    public func subscribe(_ delegate: VFCacheHandlerDelegate) {
         async {
-            for (index, d) in enumerate(self.delegates) {
+            for (index, d) in self.delegates.enumerated() {
                 if delegate === d {
                     return
                 }
@@ -185,11 +188,11 @@ extension VFCacheHandler {
         }
     }
     
-    public func unsubscribe(delegate: VFCacheHandlerDelegate) {
+    public func unsubscribe(_ delegate: VFCacheHandlerDelegate) {
         async {
-            for (index, d) in enumerate(self.delegates) {
+            for (index, d) in self.delegates.enumerated() {
                 if delegate === d {
-                    self.delegates.removeAtIndex(index)
+                    self.delegates.remove(at: index)
                     return
                 }
             }

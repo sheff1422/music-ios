@@ -9,26 +9,26 @@ import UIKit
 
 extension UIScrollView {
 
-    private var pullToRefreshView: PullToRefreshView? {
+    fileprivate var pullToRefreshView: PullToRefreshView? {
         get {
-            var pullToRefreshView = viewWithTag(PullToRefreshConst.tag)
+            let pullToRefreshView = viewWithTag(PullToRefreshConst.tag)
             return pullToRefreshView as? PullToRefreshView
         }
     }
 
-    func addPullToRefresh(refreshCompletion :(() -> ())) {
-        let refreshViewFrame = CGRectMake(0, -PullToRefreshConst.height, self.frame.size.width, PullToRefreshConst.height)
-        var refreshView = PullToRefreshView(refreshCompletion: refreshCompletion, frame: refreshViewFrame)
+    func addPullToRefresh(_ refreshCompletion :@escaping (() -> ())) {
+        let refreshViewFrame = CGRect(x: 0, y: -PullToRefreshConst.height, width: self.frame.size.width, height: PullToRefreshConst.height)
+        let refreshView = PullToRefreshView(refreshCompletion: refreshCompletion, frame: refreshViewFrame)
         refreshView.tag = PullToRefreshConst.tag
         addSubview(refreshView)
     }
 
     func startPullToRefresh() {
-        pullToRefreshView?.state = .Refreshing
+        pullToRefreshView?.state = .refreshing
     }
     
     func stopPullToRefresh() {
-        pullToRefreshView?.state = .Normal
+        pullToRefreshView?.state = .normal
     }
     
     // If you want to PullToRefreshView fixed top potision, Please call this function in scrollViewDidScroll

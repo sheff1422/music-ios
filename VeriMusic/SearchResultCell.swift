@@ -32,7 +32,7 @@ class SearchResultCell: UITableViewCell {
     }
     
     required init(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+        super.init(coder: aDecoder)!
     }
     
     override func awakeFromNib() {
@@ -41,14 +41,14 @@ class SearchResultCell: UITableViewCell {
         Round(viewBackDuration)
     }
     
-    func Round(view: UIView){
+    func Round(_ view: UIView){
         view.layer.cornerRadius = 10.0
-        view.layer.borderColor = UIColor.grayColor().CGColor
+        view.layer.borderColor = UIColor.gray.cgColor
         view.layer.borderWidth = 0.5
         view.clipsToBounds = true
     }
     
-    override func setSelected(selected: Bool, animated: Bool) {
+    override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
     }
 }

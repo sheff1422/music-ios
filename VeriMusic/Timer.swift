@@ -29,10 +29,10 @@ import UIKit
 
 class Timer: NSObject {
     
-    internal var block, timerBlock: dispatch_block_t!
-    internal var timer: dispatch_source_t?
+    internal var block, timerBlock: (()->())?
+    internal var timer: DispatchSource?
     
-    internal var fireDate: NSDate!
+    internal var fireDate: Date!
     internal var interval: Double = 1.0
     
     internal var repeats: Bool = false
@@ -40,9 +40,8 @@ class Timer: NSObject {
     
     internal var didPauseInBackground = false
     
-    init(interval: Double = 1.0, repeats: Bool = false, pauseInBackground: Bool = true, block: () -> ()) {
+    init(interval: Double = 1.0, repeats: Bool = false, pauseInBackground: Bool = true, block: @escaping () -> ()) {
         super.init()
-        
         self.block = block
         self.interval = interval
         self.repeats = repeats
@@ -58,7 +57,7 @@ class Timer: NSObject {
         self.timerBlock = { [weak self] in
             if let strongSelf = self {
                 if (strongSelf.block != nil) {
-                    strongSelf.block()
+                    strongSelf.block!()
                 }
                 
                 strongSelf.invalidate()
@@ -71,43 +70,36 @@ class Timer: NSObject {
             }
         }
         
-        var start = dispatch_time(
-            DISPATCH_TIME_NOW,
-            Int64(interval * Double(NSEC_PER_SEC))
-        )
+        var start = DispatchTime.now() + Double(Int64(interval * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC)
         
-        self.timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0))
+        self.timer = DispatchSource.makeTimerSource(flags: DispatchSource.TimerFlags(rawValue: 0), queue: DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.default)) /*Migrator FIXME: Use DispatchSourceTimer to avoid the cast*/ as? DispatchSource
+        self.timer?.scheduleRepeating(deadline: .now() + interval, interval: Double(NSEC_PER_SEC), leeway: .seconds(1))
+        self.timer?.setEventHandler(handler: self.timerBlock!)
+        self.timer!.resume()
         
-        dispatch_source_set_timer(self.timer!, start, UInt64(interval * Double(NSEC_PER_SEC)), (1 * NSEC_PER_SEC) / 10)
-        dispatch_source_set_event_handler(self.timer!, self.timerBlock)
-        dispatch_resume(self.timer!)
+        self.fireDate = Date().addingTimeInterval(interval)
         
-        self.fireDate = NSDate().dateByAddingTimeInterval(interval)
-        
-        NSNotificationCenter.defaultCenter().addObserver(self, selector: "resume", name: UIApplicationWillEnterForegroundNotification, object: nil)
-        NSNotificationCenter.defaultCenter().addObserver(self, selector: "pause", name: UIApplicationWillResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(Timer.resume), name: NSNotification.Name.UIApplicationWillEnterForeground, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(Timer.pause), name: NSNotification.Name.UIApplicationWillResignActive, object: nil)
     }
     
     func resume() {
         if let date = self.fireDate {
-            if NSDate().compare(self.fireDate) != .OrderedAscending {
-                self.timerBlock()
+            if Date().compare(self.fireDate) != .orderedAscending {
+                self.timerBlock!()
                 didPauseInBackground = false
                 return
             } else if didPauseInBackground {
                 didPauseInBackground = false
                 
-                let interval = self.fireDate.timeIntervalSinceDate(NSDate())
+                let interval = self.fireDate.timeIntervalSince(Date())
                 
-                var start = dispatch_time(
-                    DISPATCH_TIME_NOW,
-                    Int64(interval * Double(NSEC_PER_SEC))
-                )
+                var start = DispatchTime.now() + Double(Int64(interval * Double(NSEC_PER_SEC))) / Double(NSEC_PER_SEC)
                 
-                self.timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0))
-                dispatch_source_set_timer(self.timer!, start, UInt64(interval * Double(NSEC_PER_SEC)), (1 * NSEC_PER_SEC) / 10)
-                dispatch_source_set_event_handler(self.timer!, self.timerBlock)
-                dispatch_resume(self.timer!)
+                self.timer = DispatchSource.makeTimerSource(flags: DispatchSource.TimerFlags(rawValue: 0), queue: DispatchQueue.global(priority: DispatchQueue.GlobalQueuePriority.default)) /*Migrator FIXME: Use DispatchSourceTimer to avoid the cast*/ as? DispatchSource
+                self.timer?.scheduleRepeating(deadline: .now() + interval, interval: Double(NSEC_PER_SEC), leeway: .milliseconds(100))
+                self.timer?.setEventHandler(handler: self.timerBlock!)
+                self.timer!.resume()
             }
         }
     }
@@ -115,7 +107,7 @@ class Timer: NSObject {
     func pause() {
         if self.pauseInBackground, let timer = self.timer {
             didPauseInBackground = true
-            dispatch_source_cancel(timer)
+            timer.cancel()
             self.timer = nil
         }
     }
@@ -125,13 +117,13 @@ class Timer: NSObject {
     }
     
     deinit {
-        NSNotificationCenter.defaultCenter().removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
         self.invalidate()
     }
     
     func invalidate() {
         if let timer = self.timer {
-            dispatch_source_cancel(timer)
+            timer.cancel()
             self.fireDate = nil
             self.timer    = nil
         }

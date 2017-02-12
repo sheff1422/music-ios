@@ -10,13 +10,13 @@ import UIKit
 
 class PlayerControlBar: UIToolbar {
     
-    private var playButton: UIBarButtonItem?
-    private var pauseButton: UIBarButtonItem?
-    private var backButton: UIBarButtonItem?
-    private var nextButton: UIBarButtonItem?
+    fileprivate var playButton: UIBarButtonItem?
+    fileprivate var pauseButton: UIBarButtonItem?
+    fileprivate var backButton: UIBarButtonItem?
+    fileprivate var nextButton: UIBarButtonItem?
     
-    private let fixedSpace: UIBarButtonItem = {
-        let space = UIBarButtonItem(barButtonSystemItem: .FixedSpace, target: nil, action: nil)
+    fileprivate let fixedSpace: UIBarButtonItem = {
+        let space = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
         space.width = 42
         return space
         }()
@@ -27,23 +27,23 @@ class PlayerControlBar: UIToolbar {
         super.awakeFromNib()
         // Initialization code
 
-        playButton = UIBarButtonItem(barButtonSystemItem: .Play, target: self, action: "play")
-        pauseButton = UIBarButtonItem(barButtonSystemItem: .Pause, target: self, action: "pause")
-        backButton = UIBarButtonItem(barButtonSystemItem: .Rewind, target: self, action: "back")
-        nextButton = UIBarButtonItem(barButtonSystemItem: .FastForward, target: self, action: "next")
+        playButton = UIBarButtonItem(barButtonSystemItem: .play, target: self, action: #selector(PlayerControlBar.play))
+        pauseButton = UIBarButtonItem(barButtonSystemItem: .pause, target: self, action: #selector(PlayerControlBar.pause))
+        backButton = UIBarButtonItem(barButtonSystemItem: .rewind, target: self, action: #selector(PlayerControlBar.back))
+        nextButton = UIBarButtonItem(barButtonSystemItem: .fastForward, target: self, action: #selector(PlayerControlBar.next as (PlayerControlBar) -> () -> ()))
         
         self.items = [
-            UIBarButtonItem(barButtonSystemItem: .FlexibleSpace, target: nil, action: nil),
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
             backButton!,
             fixedSpace,
             playButton!,
             fixedSpace,
             nextButton!,
-            UIBarButtonItem(barButtonSystemItem: .FlexibleSpace, target: nil, action: nil)
+            UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         ]
         
-        self.setBackgroundImage(UIImage(), forToolbarPosition: .Any, barMetrics: .Default)
-        self.backgroundColor = UIColor.clearColor()
+        self.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
+        self.backgroundColor = UIColor.clear
         self.clipsToBounds = true
         
     }

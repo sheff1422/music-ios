@@ -9,8 +9,32 @@
 import UIKit
 import MediaPlayer
 import AVFoundation
+// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
+// Consider refactoring the code to use the non-optional operators.
+fileprivate func < <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
+  switch (lhs, rhs) {
+  case let (l?, r?):
+    return l < r
+  case (nil, _?):
+    return true
+  default:
+    return false
+  }
+}
 
-class SearchResultVC: UIViewController, DownloadManagerDelegate {
+// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
+// Consider refactoring the code to use the non-optional operators.
+fileprivate func >= <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
+  switch (lhs, rhs) {
+  case let (l?, r?):
+    return l >= r
+  default:
+    return !(lhs < rhs)
+  }
+}
+
+
+class SearchResultVC: UIViewController {
 
     let kCellIdentifier: String = "SearchResultCell"
     
@@ -18,11 +42,11 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var settingsItem: UIBarButtonItem!
    
-    var timer: NSTimer? = nil
+    var timer: Foundation.Timer? = nil
     var api : APIController?
     var imageCache = [String : UIImage]()
     var trackList = [TrackList]()
-    var cacheFileSize: NSCache!
+    var cacheFileSize: NSCache<AnyObject, AnyObject>!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -30,13 +54,13 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
         self.api?.getToken(Config.GET_TOKEN)
         
         settingsItem.title = NSLocalizedString("settings", comment: "Settings")
-        UIApplication.sharedApplication().setStatusBarStyle(UIStatusBarStyle.LightContent, animated: true)
+        UIApplication.shared.setStatusBarStyle(UIStatusBarStyle.lightContent, animated: true)
         tableView.estimatedRowHeight = 100
         tableView.rowHeight = UITableViewAutomaticDimension
         self.searchBar.delegate = self
-        self.searchBar.searchBarStyle = UISearchBarStyle.Minimal
-        self.tableView.separatorColor = UIColor.Colors.Grey.colorWithAlphaComponent(0.3)
-        self.tableView.tableFooterView = UIView(frame: CGRectZero)
+        self.searchBar.searchBarStyle = UISearchBarStyle.minimal
+        self.tableView.separatorColor = UIColor.Colors.Grey.withAlphaComponent(0.3)
+        self.tableView.tableFooterView = UIView(frame: CGRect.zero)
         GetTrackList("")
         
         self.tableView.addPullToRefresh({ [weak self] in
@@ -47,8 +71,8 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
         DownloadManager.sharedInstance.subscribe(self)
         cacheFileSize = NSCache()
 
-        let player = UIBarButtonItem(title: NSLocalizedString("player", comment: "Player"), style: .Plain, target: self, action: Selector("seguePlayer:"))
-        if let downloadEnabled = NSUserDefaults.standardUserDefaults().valueForKey("downloadEnabled") as? Int {
+        let player = UIBarButtonItem(title: NSLocalizedString("player", comment: "Player"), style: .plain, target: self, action: #selector(SearchResultVC.seguePlayer(_:)))
+        if let downloadEnabled = UserDefaults.standard.value(forKey: "downloadEnabled") as? Int {
             if downloadEnabled == 1 {
                 self.navigationItem.rightBarButtonItem = player
             }
@@ -59,12 +83,12 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
         DownloadManager.sharedInstance.unsubscribe(self)
     }
     
-    func seguePlayer(sender: UIBarButtonItem) {
-        self.performSegueWithIdentifier("PlayerVC", sender: nil)
+    func seguePlayer(_ sender: UIBarButtonItem) {
+        self.performSegue(withIdentifier: "PlayerVC", sender: nil)
     }
     
-    func GetTrackList(searchText: String){
-        let popular_songs = (NSUserDefaults.standardUserDefaults().boolForKey("popular_songs"))
+    func GetTrackList(_ searchText: String){
+        let popular_songs = (UserDefaults.standard.bool(forKey: "popular_songs"))
 
         if popular_songs {
             //api = APIController(delegate: self)
@@ -77,9 +101,9 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
         }
     }
     
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "ShowPlayer" {
-            if let blogActions = segue.destinationViewController as? PlayMusic {
+            if let blogActions = segue.destination as? PlayMusic {
                 if let ppc = blogActions.popoverPresentationController {
                     ppc.delegate = self
                 }
@@ -87,23 +111,23 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
         }
     }
 
-    @IBAction func playBtnTapped(sender: UIButton) {
+    @IBAction func playBtnTapped(_ sender: UIButton) {
         
         let button = sender as UIButton
         let viewB = button.superview!
         let viewBack = viewB.superview
         let cell = viewBack?.superview as! SearchResultCell
         
-        let indexPath = self.tableView.indexPathForCell(cell)
+        let indexPath = self.tableView.indexPath(for: cell)
         
         showPopover(indexPath!)
     }
     
-    func showPopover(indexPath: NSIndexPath)
+    func showPopover(_ indexPath: IndexPath)
     {
-        if let popoverVC = self.storyboard?.instantiateViewControllerWithIdentifier("PlayMusic") as? PlayMusic
+        if let popoverVC = self.storyboard?.instantiateViewController(withIdentifier: "PlayMusic") as? PlayMusic
         {
-            popoverVC.modalPresentationStyle = .Popover
+            popoverVC.modalPresentationStyle = .popover
             popoverVC.trackList = self.trackList
             popoverVC.index = indexPath.row
             
@@ -112,50 +136,50 @@ class SearchResultVC: UIViewController, DownloadManagerDelegate {
             ProgressView.shared.showProgressView(view)
             let popover = popoverVC.popoverPresentationController!
             popover.delegate = self
-            var frame = UIScreen.mainScreen().applicationFrame
+            var frame = UIScreen.main.applicationFrame
             popover.sourceView = view
-            var rect = CGRectMake(0 , frame.origin.y , frame.width, frame.height)
+            var rect = CGRect(x: 0 , y: frame.origin.y , width: frame.width, height: frame.height)
             popover.sourceRect = rect
-            popover.permittedArrowDirections = UIPopoverArrowDirection.allZeros
-            presentViewController(popoverVC, animated: true, completion: nil)
+            popover.permittedArrowDirections = [.up, .down]
+            present(popoverVC, animated: true, completion: nil)
         }
     }
 }
 
 extension SearchResultVC: APIControllerProtocol {
     
-    func didReceiveAPIResults(results: NSDictionary, indexPath: NSIndexPath) {
+    func didReceiveAPIResults(_ results: NSDictionary, indexPath: IndexPath) {
         if let resultsArr = results["response"] as? NSArray {
-            //println(resultsArr)
-            dispatch_async(dispatch_get_main_queue(), {
+            //print(resultsArr)
+            DispatchQueue.main.async(execute: {
                 self.trackList = TrackList.TrackListWithJSON(resultsArr)
                 self.tableView!.reloadData()
-                UIApplication.sharedApplication().networkActivityIndicatorVisible = false
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
             })
         }
         if let length = results["length"] as? String {
-            println(length)
-            dispatch_async(dispatch_get_main_queue(), {
+            print(length)
+            DispatchQueue.main.async(execute: {
                 if (indexPath.row > 0){
-                    self.cacheFileSize.setObject("\((length as NSString).doubleValue/1024)", forKey: results["title"]!)
-                    self.tableView.reloadRowsAtIndexPaths([indexPath], withRowAnimation: UITableViewRowAnimation.Automatic)
+                    self.cacheFileSize.setObject("\((length as NSString).doubleValue/1024)" as AnyObject, forKey: results["title"]! as AnyObject)
+                    self.tableView.reloadRows(at: [indexPath], with: UITableViewRowAnimation.automatic)
                 }
             })
         }
         if let status = results["status"] as? String {
-            GetTrackList(self.searchBar.text)
+            GetTrackList(self.searchBar.text!)
         }
     }
     
-    func result(status: String, error_msg: String, error_code: Int, captcha_sid: String, captcha_img: String)
+    func result(_ status: String, error_msg: String, error_code: Int, captcha_sid: String, captcha_img: String)
     {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
 
         if(error_code == 14){
-            var captchaNeededVC = self.storyboard?.instantiateViewControllerWithIdentifier("CaptchaNeededVC") as! CaptchaNeededVC
+            var captchaNeededVC = self.storyboard?.instantiateViewController(withIdentifier: "CaptchaNeededVC") as! CaptchaNeededVC
             captchaNeededVC.captchaImgUrl = captcha_img
             captchaNeededVC.captcha_sid = captcha_sid
-            self.navigationController?.presentViewController(captchaNeededVC, animated: true, completion: nil)
+            self.navigationController?.present(captchaNeededVC, animated: true, completion: nil)
         }
         
         if(error_code == 5){
@@ -176,19 +200,19 @@ extension SearchResultVC: APIControllerProtocol {
 }
 
 extension SearchResultVC: UISearchBarDelegate {
-    func searchBar(searchBar: UISearchBar, textDidChange searchText: String) {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         /*timer?.invalidate()
         timer = NSTimer.scheduledTimerWithTimeInterval(1.0, target: self, selector: Selector("getHints:"), userInfo: searchText, repeats: false)*/
         
     }
     
-    func searchBarSearchButtonClicked(searchBar: UISearchBar) {
-        self.GetTrackList(searchBar.text)
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        self.GetTrackList(searchBar.text!)
         self.searchBar.resignFirstResponder()
     }
     
-    func getHints(timer: NSTimer) {
-        if (timer.userInfo?.length >= 3){
+    func getHints(_ timer: Foundation.Timer) {
+        if ((timer.userInfo as AnyObject).length >= 3){
             self.GetTrackList(timer.userInfo! as! String)
             self.searchBar.resignFirstResponder()
         }
@@ -198,28 +222,28 @@ extension SearchResultVC: UISearchBarDelegate {
 
 extension SearchResultVC: UITableViewDataSource, UITableViewDelegate {
     
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return trackList.count
     }
     
-    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = self.tableView.dequeueReusableCellWithIdentifier(kCellIdentifier) as! SearchResultCell
+        let cell = self.tableView.dequeueReusableCell(withIdentifier: kCellIdentifier) as! SearchResultCell
         
         let track = self.trackList[indexPath.row]
-        var title = track.title.stringByReplacingOccurrencesOfString("amp;", withString: "", options: nil, range: nil)
-        var artist = track.artist.stringByReplacingOccurrencesOfString("amp;", withString: "", options: nil, range: nil)
+        var title = track.title.replacingOccurrences(of:"amp;", with: "")
+        var artist = track.artist.replacingOccurrences(of:"amp;", with: "")
         
         cell.title.text = "\(artist) - \(title)"
         cell.durationBtn.titleLabel?.text = stringFromTimeInterval(track.duration)
-        cell.progressView.hidden = true
-        cell.size.hidden = true
+        cell.progressView.isHidden = true
+        cell.size.isHidden = true
         var selectedBack = UIView();
         selectedBack.backgroundColor = UIColor(hex: 0x9E9E9E, alpha: 0.1)
         cell.selectedBackgroundView = selectedBack
 
-        if let size: String = cacheFileSize.objectForKey(track.title) as? String {
-            cell.size.hidden = false
+        if let size: String = cacheFileSize.object(forKey: track.title as AnyObject) as? String {
+            cell.size.isHidden = false
             cell.size.text = (NSString(format:"%.2f", (size as NSString).doubleValue/1024) as String) + " mb."
         }else{
             cell.size.text = nil
@@ -228,53 +252,53 @@ extension SearchResultVC: UITableViewDataSource, UITableViewDelegate {
         return cell
     }
     
-    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let currentAudio = trackList[indexPath.row]
-        var title = currentAudio.title.stringByReplacingOccurrencesOfString("amp;", withString: "", options: nil, range: nil)
-        var artist = currentAudio.artist.stringByReplacingOccurrencesOfString("amp;", withString: "", options: nil, range: nil)
+        var title = currentAudio.title.replacingOccurrences(of:"amp;", with: "")
+        var artist = currentAudio.artist.replacingOccurrences(of:"amp;", with: "")
         
-        var cell = tableView.cellForRowAtIndexPath(indexPath) as! SearchResultCell
+        var cell = tableView.cellForRow(at: indexPath) as! SearchResultCell
         
-        cell.selectedBackgroundView.backgroundColor = UIColor(hex: 0x9E9E9E, alpha: 0.1)
-        cell.viewBackDuration.backgroundColor = UIColor.Colors.BlueGrey.colorWithAlphaComponent(0.7)
-        dispatch_async(dispatch_get_main_queue(), {
-            if(self.cacheFileSize.objectForKey(currentAudio.title) == nil) {
+        cell.selectedBackgroundView?.backgroundColor = UIColor(hex: 0x9E9E9E, alpha: 0.1)
+        cell.viewBackDuration.backgroundColor = UIColor.Colors.BlueGrey.withAlphaComponent(0.7)
+        DispatchQueue.main.async(execute: {
+            if(self.cacheFileSize.object(forKey: currentAudio.title as AnyObject) == nil) {
                 self.api?.audioInfo(currentAudio, indexPath: indexPath)
             }
         })
         
 
-        let shareMenu = UIAlertController(title: "\(artist)", message: "\(title)", preferredStyle: .ActionSheet)
+        let shareMenu = UIAlertController(title: "\(artist)", message: "\(title)", preferredStyle: .actionSheet)
         if let presentationController = shareMenu.popoverPresentationController {
-            var selectedCell = tableView.cellForRowAtIndexPath(indexPath)
+            var selectedCell = tableView.cellForRow(at: indexPath)
             presentationController.sourceView = selectedCell?.contentView
             presentationController.sourceRect = selectedCell!.contentView.frame
         }
         
-        let download = UIAlertAction(title: NSLocalizedString("download", comment: "Download"), style: .Default, handler: {
+        let download = UIAlertAction(title: NSLocalizedString("download", comment: "Download"), style: .default, handler: {
             (action:UIAlertAction!) -> Void in
             DownloadManager.sharedInstance.download(currentAudio, indexPath: indexPath)
         })
-        let play = UIAlertAction(title: NSLocalizedString("play", comment: "Play button"), style: .Default, handler: {
+        let play = UIAlertAction(title: NSLocalizedString("play", comment: "Play button"), style: .default, handler: {
             (action:UIAlertAction!) -> Void in
             self.showPopover(indexPath)
         })
-        let share = UIAlertAction(title: NSLocalizedString("share", comment: "Share button"), style: .Default, handler: {
+        let share = UIAlertAction(title: NSLocalizedString("share", comment: "Share button"), style: .default, handler: {
             (action:UIAlertAction!) -> Void in
             let textToShare = NSLocalizedString("advice", comment: "Hey! You should check up this music!")
             
-            if let myWebsite = NSURL(string: "http://www.alashov.com/music/download.php?audio_id=\(currentAudio.owner_id)_\(currentAudio.aid)")
+            if let myWebsite = URL(string: "http://www.alashov.com/music/download.php?audio_id=\(currentAudio.owner_id)_\(currentAudio.aid)")
             {
-                let objectsToShare = [textToShare, myWebsite]
+                let objectsToShare = [textToShare, myWebsite] as [Any]
                 let activityVC = UIActivityViewController(activityItems: objectsToShare, applicationActivities: nil)
-                var selectedCell = tableView.cellForRowAtIndexPath(indexPath)
+                var selectedCell = tableView.cellForRow(at: indexPath)
                 activityVC.popoverPresentationController!.sourceView = selectedCell?.contentView
                 
-                self.presentViewController(activityVC, animated: true, completion: nil)
+                self.present(activityVC, animated: true, completion: nil)
             }
         })
-        let cancelAction = UIAlertAction(title: NSLocalizedString("cancel", comment: "Cancel button"), style: UIAlertActionStyle.Cancel, handler: nil)
-        if let downloadEnabled = NSUserDefaults.standardUserDefaults().valueForKey("downloadEnabled") as? Int {
+        let cancelAction = UIAlertAction(title: NSLocalizedString("cancel", comment: "Cancel button"), style: UIAlertActionStyle.cancel, handler: nil)
+        if let downloadEnabled = UserDefaults.standard.value(forKey: "downloadEnabled") as? Int {
             if downloadEnabled == 1 {
                 shareMenu.addAction(download)
             }
@@ -284,52 +308,58 @@ extension SearchResultVC: UITableViewDataSource, UITableViewDelegate {
         shareMenu.addAction(share)
         shareMenu.addAction(cancelAction)
 
-        self.presentViewController(shareMenu, animated: true, completion: nil)
+        self.present(shareMenu, animated: true, completion: nil)
     }
     
-    func tableView(tableView: UITableView, willDisplayCell cell: UITableViewCell, forRowAtIndexPath indexPath: NSIndexPath) {
-        cell.backgroundColor = UIColor.clearColor()
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        cell.backgroundColor = UIColor.clear
     }
     
 }
 
 extension SearchResultVC: UIScrollViewDelegate {
-    func scrollViewDidScroll(scrollView: UIScrollView) {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
         self.searchBar.resignFirstResponder()
     }
 }
 
 extension SearchResultVC: UIPopoverPresentationControllerDelegate {
-    func adaptivePresentationStyleForPresentationController(controller: UIPresentationController) -> UIModalPresentationStyle {
-        return UIModalPresentationStyle.None
+    func adaptivePresentationStyle(for controller: UIPresentationController) -> UIModalPresentationStyle {
+        return UIModalPresentationStyle.none
     }
     
-    func popoverPresentationControllerDidDismissPopover(popoverPresentationController: UIPopoverPresentationController) {
+    func popoverPresentationControllerDidDismissPopover(_ popoverPresentationController: UIPopoverPresentationController) {
         AudioPlayer.sharedInstance.pause()
     }
 }
 
 extension SearchResultVC: DownloadManagerDelegate {
-    func downloadManager(downloadManager: DownloadManager, downloadDidFail url: NSURL, error: NSError, indexPath: NSIndexPath) {
-        println("Failed to download: \(url.absoluteString)")
-        var selectedCell = self.tableView.cellForRowAtIndexPath(indexPath) as? SearchResultCell
-        selectedCell?.progressView.hidden = true
+    func equals(otherObject: DownloadManagerDelegate) -> Bool {
+        if let otherAsSelf = otherObject as? SearchResultVC {
+            return otherAsSelf == self
+        }
+        return false
+    }
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidFail url: URL, error: NSError, indexPath: IndexPath) {
+        print("Failed to download: \(url.absoluteString)")
+        let selectedCell = self.tableView.cellForRow(at: indexPath) as? SearchResultCell
+        selectedCell?.progressView.isHidden = true
     }
     
-    func downloadManager(downloadManager: DownloadManager, downloadDidStart url: NSURL, resumed: Bool, indexPath: NSIndexPath) {
-        println("Started to download: \(url.absoluteString)")
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidStart url: URL, resumed: Bool, indexPath: IndexPath) {
+        print("Started to download: \(url.absoluteString)")
     }
     
-    func downloadManager(downloadManager: DownloadManager, downloadDidFinish url: NSURL, indexPath: NSIndexPath) {
-        println("Finished downloading: \(url.absoluteString)")
-        var selectedCell = self.tableView.cellForRowAtIndexPath(indexPath) as? SearchResultCell
-        selectedCell?.progressView.hidden = true
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidFinish url: URL, indexPath: IndexPath) {
+        print("Finished downloading: \(url.absoluteString)")
+        let selectedCell = self.tableView.cellForRow(at: indexPath) as? SearchResultCell
+        selectedCell?.progressView.isHidden = true
     }
     
-    func downloadManager(downloadManager: DownloadManager, downloadDidProgress url: NSURL, totalSize: UInt64, downloadedSize: UInt64, percentage: Double, averageDownloadSpeedInBytes: UInt64, timeRemaining: NSTimeInterval, indexPath: NSIndexPath) {
-        //println("Downloading \(url.absoluteString) (Percentage: \(percentage))")
-        var selectedCell = self.tableView.cellForRowAtIndexPath(indexPath) as? SearchResultCell
-        selectedCell?.progressView.hidden = false
+    func downloadManager(_ downloadManager: DownloadManager, downloadDidProgress url: URL, totalSize: UInt64, downloadedSize: UInt64, percentage: Double, averageDownloadSpeedInBytes: UInt64, timeRemaining: TimeInterval, indexPath: IndexPath) {
+        //print("Downloading \(url.absoluteString) (Percentage: \(percentage))")
+        let selectedCell = self.tableView.cellForRow(at: indexPath) as? SearchResultCell
+        selectedCell?.progressView.isHidden = false
         selectedCell?.counter = Int(percentage * 100)
     }
 }

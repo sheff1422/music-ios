@@ -14,7 +14,7 @@ class PlaylistTableViewCell: UITableViewCell {
     @IBOutlet var titleLabel: UILabel?
     @IBOutlet var artistAndAlbumNameLabel: UILabel?
     
-    override var layoutMargins: UIEdgeInsets { get { return UIEdgeInsetsZero } set(newVal) {} }
+    override var layoutMargins: UIEdgeInsets { get { return UIEdgeInsets.zero } set(newVal) {} }
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -22,7 +22,7 @@ class PlaylistTableViewCell: UITableViewCell {
         
     }
     
-    override func setSelected(selected: Bool, animated: Bool) {
+    override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
         
         // Configure the view for the selected state
